@@ -7,7 +7,7 @@ let swiftSettings: [SwiftSetting] = [.enableExperimentalFeature("StrictConcurren
 
 let package = Package(
     name: "hummingbird",
-    platforms: [.macOS(.v14), .iOS(.v17), .tvOS(.v17)],
+    platforms: [.macOS(.v10_15), .iOS(.v13), .tvOS(.v13)],
     products: [
         .library(name: "Hummingbird", targets: ["Hummingbird"]),
         .library(name: "HummingbirdCore", targets: ["HummingbirdCore"]),
@@ -25,13 +25,13 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-http-types.git", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-metrics.git", from: "2.5.0"),
         .package(url: "https://github.com/apple/swift-distributed-tracing.git", from: "1.0.1"),
-        .package(url: "https://github.com/apple/swift-nio.git", from: "2.63.0"),
-        .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.20.0"),
-        .package(url: "https://github.com/apple/swift-nio-http2.git", from: "1.28.0"),
-        .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "2.14.0"),
-        .package(url: "https://github.com/apple/swift-nio-transport-services.git", from: "1.20.0"),
-        .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "2.0.0"),
-        .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.19.0"),
+        .package(url: "https://github.com/chkp-aviads/swift-nio.git", branch: "main"),
+        .package(url: "https://github.com/chkp-aviads/swift-nio-extras.git", branch: "main"),
+        .package(url: "https://github.com/chkp-aviads/swift-nio-http2.git", branch: "main"),
+        .package(url: "https://github.com/chkp-aviads/swift-nio-ssl.git", branch: "main"),
+        .package(url: "https://github.com/chkp-aviads/swift-nio-transport-services.git", branch: "main"),
+        .package(url: "https://github.com/chkp-aviads/swift-service-lifecycle.git", branch: "main"),
+        .package(url: "https://github.com/chkp-aviads/async-http-client.git", branch: "main"),
     ],
     targets: [
         .target(
