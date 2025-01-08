@@ -83,7 +83,7 @@ public struct HBExtensions<ParentObject> {
         )
     }
 
-    mutating func shutdown() throws {
+    public mutating func shutdown() throws {
         for item in self.items.values {
             try item.shutdown?(item.value)
         }
