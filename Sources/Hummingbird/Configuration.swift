@@ -48,6 +48,8 @@ extension HBApplication {
         public let enableHttpPipelining: Bool
         /// Idle state handler setup.
         public let idleTimeoutConfiguration: HBHTTPServer.IdleStateHandlerConfiguration?
+        /// Force requests and responses to use Connection: close and not keep-alive to reduce opened connections
+        public let forceNoKeepAlive: Bool
         #if canImport(Network)
         /// TLS options for NIO Transport services
         public let tlsOptions: TSTLSOptions
@@ -87,6 +89,7 @@ extension HBApplication {
             tcpNoDelay: Bool = false,
             enableHttpPipelining: Bool = true,
             idleTimeoutConfiguration: HBHTTPServer.IdleStateHandlerConfiguration? = nil,
+            forceNoKeepAlive: Bool = false,
             threadPoolSize: Int = 2,
             logLevel: Logger.Level? = nil,
             noHTTPServer: Bool = false
@@ -103,6 +106,7 @@ extension HBApplication {
             self.tcpNoDelay = tcpNoDelay
             self.enableHttpPipelining = enableHttpPipelining
             self.idleTimeoutConfiguration = idleTimeoutConfiguration
+            self.forceNoKeepAlive = forceNoKeepAlive
             #if canImport(Network)
             self.tlsOptions = .none
             #endif
@@ -146,6 +150,7 @@ extension HBApplication {
             tcpNoDelay: Bool = false,
             enableHttpPipelining: Bool = true,
             idleTimeoutConfiguration: HBHTTPServer.IdleStateHandlerConfiguration? = nil,
+            forceNoKeepAlive: Bool = false,
             threadPoolSize: Int = 2,
             logLevel: Logger.Level? = nil,
             noHTTPServer: Bool = false
@@ -162,6 +167,7 @@ extension HBApplication {
             self.tcpNoDelay = tcpNoDelay
             self.enableHttpPipelining = enableHttpPipelining
             self.idleTimeoutConfiguration = idleTimeoutConfiguration
+            self.forceNoKeepAlive = forceNoKeepAlive
             #if canImport(Network)
             self.tlsOptions = .none
             #endif
@@ -201,6 +207,7 @@ extension HBApplication {
             reuseAddress: Bool = true,
             enableHttpPipelining: Bool = true,
             idleTimeoutConfiguration: HBHTTPServer.IdleStateHandlerConfiguration? = nil,
+            forceNoKeepAlive: Bool = false,
             threadPoolSize: Int = 2,
             logLevel: Logger.Level? = nil,
             noHTTPServer: Bool = false,
@@ -218,6 +225,7 @@ extension HBApplication {
             self.tcpNoDelay = true // not used by Network framework
             self.enableHttpPipelining = enableHttpPipelining
             self.idleTimeoutConfiguration = idleTimeoutConfiguration
+            self.forceNoKeepAlive = forceNoKeepAlive
             self.tlsOptions = tlsOptions
 
             self.threadPoolSize = threadPoolSize
@@ -255,6 +263,7 @@ extension HBApplication {
             reuseAddress: Bool = true,
             enableHttpPipelining: Bool = true,
             idleTimeoutConfiguration: HBHTTPServer.IdleStateHandlerConfiguration? = nil,
+            forceNoKeepAlive: Bool = false,
             threadPoolSize: Int = 2,
             logLevel: Logger.Level? = nil,
             noHTTPServer: Bool = false,
@@ -272,6 +281,7 @@ extension HBApplication {
             self.tcpNoDelay = true // not used by Network framework
             self.enableHttpPipelining = enableHttpPipelining
             self.idleTimeoutConfiguration = idleTimeoutConfiguration
+            self.forceNoKeepAlive = forceNoKeepAlive
             self.tlsOptions = tlsOptions
 
             self.threadPoolSize = threadPoolSize
@@ -299,6 +309,7 @@ extension HBApplication {
             tcpNoDelay: Bool? = nil,
             enableHttpPipelining: Bool? = nil,
             idleTimeoutConfiguration: HBHTTPServer.IdleStateHandlerConfiguration? = nil,
+            forceNoKeepAlive: Bool? = nil,
             threadPoolSize: Int? = nil,
             logLevel: Logger.Level? = nil
         ) -> Self {
@@ -312,6 +323,7 @@ extension HBApplication {
                 tcpNoDelay: tcpNoDelay ?? self.tcpNoDelay,
                 enableHttpPipelining: enableHttpPipelining ?? self.enableHttpPipelining,
                 idleTimeoutConfiguration: idleTimeoutConfiguration ?? self.idleTimeoutConfiguration,
+                forceNoKeepAlive: forceNoKeepAlive ?? self.forceNoKeepAlive,
                 threadPoolSize: threadPoolSize ?? self.threadPoolSize,
                 logLevel: logLevel ?? self.logLevel
             )
@@ -328,6 +340,7 @@ extension HBApplication {
                 reuseAddress: self.reuseAddress,
                 withPipeliningAssistance: self.enableHttpPipelining,
                 idleTimeoutConfiguration: self.idleTimeoutConfiguration,
+                forceNoKeepAlive: self.forceNoKeepAlive,
                 tlsOptions: self.tlsOptions
             )
         }
@@ -342,7 +355,8 @@ extension HBApplication {
                 reuseAddress: self.reuseAddress,
                 tcpNoDelay: self.tcpNoDelay,
                 withPipeliningAssistance: self.enableHttpPipelining,
-                idleTimeoutConfiguration: self.idleTimeoutConfiguration
+                idleTimeoutConfiguration: self.idleTimeoutConfiguration,
+                forceNoKeepAlive: self.forceNoKeepAlive
             )
         }
         #endif
