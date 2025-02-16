@@ -26,7 +26,7 @@ class HummingbirdDateTests: XCTestCase {
 
         for _ in 0..<1000 {
             let time = Int.random(in: 1...4 * Int(Int32.max))
-            XCTAssertEqual(formatter.string(from: Date(timeIntervalSince1970: Double(time))), HBDateCache.formatRFC1123Date(time))
+            XCTAssertEqual(formatter.string(from: Date(timeIntervalSince1970: Double(time))), DateFormatter.rfc1123.string(from: Date(timeIntervalSince1970: Double(time))))
         }
     }
 

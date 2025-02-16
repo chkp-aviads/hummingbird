@@ -30,7 +30,7 @@ public struct HBCookie: Sendable, CustomStringConvertible {
     public let properties: Properties
 
     /// indicates the maximum lifetime of the cookie
-    public var expires: Date? { return self.properties[.expires].map { HBDateCache.rfc1123Formatter.date(from: $0) } ?? nil }
+    public var expires: Date? { return self.properties[.expires].map { DateFormatter.rfc1123.date(from: $0) } ?? nil }
     /// indicates the maximum lifetime of the cookie in seconds. Max age has precedence over expires
     /// (not all user agents support max-age)
     public var maxAge: Int? { return self.properties[.maxAge].map { Int($0) } ?? nil }
@@ -69,7 +69,7 @@ public struct HBCookie: Sendable, CustomStringConvertible {
         self.name = name
         self.value = value
         var properties = Properties()
-        properties[.expires] = expires.map { HBDateCache.rfc1123Formatter.string(from: $0) }
+        properties[.expires] = expires.map { DateFormatter.rfc1123.string(from: $0) }
         properties[.maxAge] = maxAge?.description
         properties[.domain] = domain
         properties[.path] = path
@@ -103,7 +103,7 @@ public struct HBCookie: Sendable, CustomStringConvertible {
         self.name = name
         self.value = value
         var properties = Properties()
-        properties[.expires] = expires.map { HBDateCache.rfc1123Formatter.string(from: $0) }
+        properties[.expires] = expires.map { DateFormatter.rfc1123.string(from: $0) }
         properties[.maxAge] = maxAge?.description
         properties[.domain] = domain
         properties[.path] = path

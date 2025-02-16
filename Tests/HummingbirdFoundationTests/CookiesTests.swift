@@ -30,7 +30,7 @@ class CookieTests: XCTestCase {
 
     func testExpires() {
         let cookie = HBCookie(from: "name=value; Expires=Wed, 21 Oct 2015 07:28:00 GMT")
-        XCTAssertEqual(cookie?.expires, HBDateCache.rfc1123Formatter.date(from: "Wed, 21 Oct 2015 07:28:00 GMT"))
+        XCTAssertEqual(cookie?.expires, DateFormatter.rfc1123.date(from: "Wed, 21 Oct 2015 07:28:00 GMT"))
     }
 
     func testDomain() {

@@ -16,6 +16,7 @@ import HummingbirdCore
 import Logging
 import NIOCore
 import NIOHTTP1
+import Foundation
 
 extension HBApplication {
     // MARK: HTTPResponder
@@ -56,7 +57,7 @@ extension HBApplication {
                 switch result {
                 case .success(let response):
                     var response = response
-                    response.headers.add(name: "Date", value: HBDateCache.getDateCache(on: context.eventLoop).currentDate)
+                    response.headers.add(name: "Date", value: DateFormatter.rfc1123.string(from: Date()))
                     let responseHead = HTTPResponseHead(version: httpVersion, status: response.status, headers: response.headers)
                     onComplete(.success(HBHTTPResponse(head: responseHead, body: response.body)))
 
