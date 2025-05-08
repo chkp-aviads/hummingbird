@@ -12,6 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+import NIOCore
+
 /// Context that created HBRequest.
 public protocol HBRequestContext: Sendable {
     /// EventLoop request is running on
@@ -20,4 +22,6 @@ public protocol HBRequestContext: Sendable {
     var allocator: ByteBufferAllocator { get }
     /// Connected host address
     var remoteAddress: SocketAddress? { get }
+    // Sendable Channel wrapper
+    var channelBox: NIOLoopBound<Channel> { get }
 }

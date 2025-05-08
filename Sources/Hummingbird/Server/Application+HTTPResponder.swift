@@ -49,7 +49,7 @@ extension HBApplication {
                 head: request.head,
                 body: request.body,
                 application: self.application,
-                context: ChannelRequestContext(channel: context.channel)
+                context: ChannelRequestContext(channel: context.channel, channelBox: NIOLoopBound(context.channel, eventLoop: context.eventLoop))
             )
             let httpVersion = request.version
             // respond to request
@@ -74,5 +74,6 @@ extension HBApplication {
         var eventLoop: EventLoop { return self.channel.eventLoop }
         var allocator: ByteBufferAllocator { return self.channel.allocator }
         var remoteAddress: SocketAddress? { return self.channel.remoteAddress }
+        let channelBox: NIOLoopBound<Channel>
     }
 }
