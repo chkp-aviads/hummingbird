@@ -12,20 +12,21 @@
 //
 //===----------------------------------------------------------------------===//
 
-import struct Foundation.Date
-import class Foundation.JSONDecoder
-import class Foundation.JSONEncoder
-import NIOFoundationCompat
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 
 extension JSONEncoder: ResponseEncoder {
-    /// Extend JSONEncoder to support encoding `Response`'s. Sets body and header values
+    /// Extend JSONEncoder to support generating a ``HummingbirdCore/Response``. Sets body and header values
     /// - Parameters:
     ///   - value: Value to encode
     ///   - request: Request used to generate response
     ///   - context: Request context
     public func encode(_ value: some Encodable, from request: Request, context: some RequestContext) throws -> Response {
         let data = try self.encode(value)
-        let buffer = ByteBuffer(data: data)
+        let buffer = ByteBuffer(bytes: data)
         return Response(
             status: .ok,
             headers: .defaultHummingbirdHeaders(
@@ -38,13 +39,13 @@ extension JSONEncoder: ResponseEncoder {
 }
 
 extension JSONDecoder: RequestDecoder {
-    /// Extend JSONDecoder to decode from `Request`.
+    /// Extend JSONDecoder to decode from ``HummingbirdCore/Request``.
     /// - Parameters:
     ///   - type: Type to decode
     ///   - request: Request to decode from
     ///   - context: Request context
     public func decode<T: Decodable>(_ type: T.Type, from request: Request, context: some RequestContext) async throws -> T {
         let buffer = try await request.body.collect(upTo: context.maxUploadSize)
-        return try self.decode(T.self, from: buffer)
+        return try self.decodeByteBuffer(T.self, from: buffer)
     }
 }

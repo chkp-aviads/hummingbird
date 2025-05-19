@@ -93,8 +93,8 @@ public typealias HBCallbackResponder = CallbackResponder
 @_documentation(visibility: internal) @available(*, unavailable, renamed: "EditedResponse")
 public typealias HBEditedResponse = EditedResponse
 
-@_documentation(visibility: internal) @available(*, unavailable, renamed: "MemoryPersistDriver")
-public typealias HBMemoryPersistDriver = MemoryPersistDriver
+//@_documentation(visibility: internal) @available(*, unavailable, renamed: "MemoryPersistDriver")
+//public typealias HBMemoryPersistDriver = MemoryPersistDriver
 @_documentation(visibility: internal) @available(*, unavailable, renamed: "PersistDriver")
 public typealias HBPersistDriver = PersistDriver
 @_documentation(visibility: internal) @available(*, unavailable, renamed: "PersistError")

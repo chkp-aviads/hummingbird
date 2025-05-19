@@ -7,7 +7,7 @@ let swiftSettings: [SwiftSetting] = [.enableExperimentalFeature("StrictConcurren
 
 let package = Package(
     name: "hummingbird",
-    platforms: [.macOS(.v10_15), .iOS(.v13), .tvOS(.v13)],
+    platforms: [.macOS(.v13), .iOS(.v15), .macCatalyst(.v15), .tvOS(.v15)],
     products: [
         .library(name: "Hummingbird", targets: ["Hummingbird"]),
         .library(name: "HummingbirdCore", targets: ["HummingbirdCore"]),
@@ -24,14 +24,14 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-log.git", from: "1.4.0"),
         .package(url: "https://github.com/apple/swift-http-types.git", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-metrics.git", from: "2.5.0"),
-        .package(url: "https://github.com/apple/swift-distributed-tracing.git", from: "1.0.1"),
-        .package(url: "https://github.com/chkp-aviads/swift-nio.git", branch: "main"),
-        .package(url: "https://github.com/chkp-aviads/swift-nio-extras.git", branch: "main"),
-        .package(url: "https://github.com/chkp-aviads/swift-nio-http2.git", branch: "main"),
-        .package(url: "https://github.com/chkp-aviads/swift-nio-ssl.git", branch: "main"),
-        .package(url: "https://github.com/chkp-aviads/swift-nio-transport-services.git", branch: "main"),
-        .package(url: "https://github.com/chkp-aviads/swift-service-lifecycle.git", branch: "main"),
-        .package(url: "https://github.com/chkp-aviads/async-http-client.git", branch: "main"),
+        .package(url: "https://github.com/apple/swift-distributed-tracing.git", from: "1.1.0"),
+        .package(url: "https://github.com/chkp-aviads/swift-nio.git", from: "2.84.0"),
+        .package(url: "https://github.com/chkp-aviads/swift-nio-extras.git", from: "1.27.1"),
+        .package(url: "https://github.com/chkp-aviads/swift-nio-http2.git", from: "1.36.2"),
+        .package(url: "https://github.com/chkp-aviads/swift-nio-ssl.git", from: "2.32.0"),
+        .package(url: "https://github.com/chkp-aviads/swift-nio-transport-services.git", from: "1.25.2"),
+        .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "2.0.0"),
+        .package(url: "https://github.com/chkp-aviads/async-http-client.git", from: "1.27.0"),
     ],
     targets: [
         .target(
@@ -46,7 +46,6 @@ let package = Package(
                 .product(name: "Metrics", package: "swift-metrics"),
                 .product(name: "Tracing", package: "swift-distributed-tracing"),
                 .product(name: "NIOCore", package: "swift-nio"),
-                .product(name: "NIOFoundationCompat", package: "swift-nio"),
                 .product(name: "NIOPosix", package: "swift-nio"),
             ],
             swiftSettings: swiftSettings
@@ -64,7 +63,11 @@ let package = Package(
                 .product(name: "NIOHTTPTypesHTTP1", package: "swift-nio-extras"),
                 .product(name: "NIOExtras", package: "swift-nio-extras"),
                 .product(name: "NIOPosix", package: "swift-nio"),
-                .product(name: "NIOTransportServices", package: "swift-nio-transport-services"),
+                .product(
+                    name: "NIOTransportServices",
+                    package: "swift-nio-transport-services",
+                    condition: .when(platforms: [.macOS, .iOS, .macCatalyst, .tvOS, .visionOS])
+                ),
                 .product(name: "ServiceLifecycle", package: "swift-service-lifecycle"),
             ],
             swiftSettings: swiftSettings
@@ -123,28 +126,41 @@ let package = Package(
             swiftSettings: [.enableExperimentalFeature("StrictConcurrency=complete")]
         ),
         // test targets
-        .testTarget(name: "HummingbirdTests", dependencies: [
-            .byName(name: "Hummingbird"),
-            .byName(name: "HummingbirdTLS"),
-            .byName(name: "HummingbirdHTTP2"),
-            .byName(name: "HummingbirdTesting"),
-            .byName(name: "HummingbirdRouter"),
-        ]),
-        .testTarget(name: "HummingbirdRouterTests", dependencies: [
-            .byName(name: "HummingbirdRouter"),
-            .byName(name: "HummingbirdTesting"),
-        ]),
+        .testTarget(
+            name: "HummingbirdTests",
+            dependencies: [
+                .byName(name: "Hummingbird"),
+                .byName(name: "HummingbirdTLS"),
+                .byName(name: "HummingbirdHTTP2"),
+                .byName(name: "HummingbirdTesting"),
+                .byName(name: "HummingbirdRouter"),
+            ]
+        ),
+        .testTarget(
+            name: "HummingbirdRouterTests",
+            dependencies: [
+                .byName(name: "HummingbirdRouter"),
+                .byName(name: "HummingbirdTesting"),
+            ]
+        ),
         .testTarget(
             name: "HummingbirdCoreTests",
-            dependencies:
-            [
+            dependencies: [
                 .byName(name: "HummingbirdCore"),
-                .byName(name: "HummingbirdHTTP2"),
                 .byName(name: "HummingbirdTLS"),
                 .byName(name: "HummingbirdTesting"),
                 .product(name: "AsyncHTTPClient", package: "async-http-client"),
             ],
             resources: [.process("Certificates")]
+        ),
+        .testTarget(
+            name: "HummingbirdHTTP2Tests",
+            dependencies: [
+                .byName(name: "HummingbirdCore"),
+                .byName(name: "HummingbirdHTTP2"),
+                .byName(name: "HummingbirdTesting"),
+                .product(name: "AsyncHTTPClient", package: "async-http-client"),
+            ]
         ),
     ],
     swiftLanguageVersions: [.v5, .version("6")]

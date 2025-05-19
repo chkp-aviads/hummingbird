@@ -100,7 +100,7 @@ public struct MediaType: Sendable, CustomStringConvertible {
             }
         }
         if let category,
-           let subCategory
+            let subCategory
         {
             self.type = category
             self.subType = subCategory.lowercased()
@@ -112,7 +112,7 @@ public struct MediaType: Sendable, CustomStringConvertible {
 
     /// Return media type with new parameter
     public func withParameter(name: String, value: String) -> MediaType {
-        return .init(type: self.type, subType: self.subType, parameter: (name, value))
+        .init(type: self.type, subType: self.subType, parameter: (name, value))
     }
 
     /// Output
@@ -126,8 +126,8 @@ public struct MediaType: Sendable, CustomStringConvertible {
 
     /// Return if media type matches the input
     public func isType(_ type: MediaType) -> Bool {
-        guard self.type == type.type,
-              self.subType == type.subType || type.subType == "*"
+        guard self.type ~= type.type,
+            self.subType == type.subType || type.subType == "*"
         else {
             return false
         }
@@ -142,12 +142,19 @@ public struct MediaType: Sendable, CustomStringConvertible {
     /// - Parameter extension: file extension
     /// - Returns: media type
     public static func getMediaType(forExtension extension: String) -> MediaType? {
-        return extensionMediaTypeMap[`extension`]
+        getMediaType(forExtension: FileExtension(rawValue: `extension`))
+    }
+
+    /// Get media type from a file extension
+    /// - Parameter extension: file extension
+    /// - Returns: media type
+    public static func getMediaType(forExtension extension: FileExtension) -> MediaType? {
+        extensionMap[`extension`]
     }
 
     /// Media type categories
     public struct Category: Sendable, Equatable, RawRepresentable, CustomStringConvertible {
-        internal enum Internal: String, Sendable, Equatable {
+        internal enum Internal: String, Sendable {
             case application
             case audio
             case example
@@ -159,15 +166,6 @@ public struct MediaType: Sendable, CustomStringConvertible {
             case text
             case video
             case any
-
-            public static func == (_ lhs: Self, _ rhs: Self) -> Bool {
-                switch (lhs, rhs) {
-                case (.any, _), (_, .any):
-                    return true
-                default:
-                    return lhs.rawValue == rhs.rawValue
-                }
-            }
         }
 
         let value: Internal
@@ -188,6 +186,15 @@ public struct MediaType: Sendable, CustomStringConvertible {
             self.value.rawValue
         }
 
+        static func ~= (_ lhs: Self, _ rhs: Self) -> Bool {
+            switch (lhs.value, rhs.value) {
+            case (.any, _), (_, .any):
+                true
+            default:
+                lhs.value == rhs.value
+            }
+        }
+
         public static var application: Self { .init(value: .application) }
         public static var audio: Self { .init(value: .audio) }
         public static var example: Self { .init(value: .example) }
@@ -202,6 +209,22 @@ public struct MediaType: Sendable, CustomStringConvertible {
     }
 
     static let tSpecial = Set<Unicode.Scalar>(["(", ")", "<", ">", "@", ",", ";", ":", "\\", "\"", "/", "[", "]", "?", ".", "="])
+}
+
+extension MediaType: Codable {
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let value = try container.decode(String.self)
+        guard let value: Self = MediaType(from: value) else {
+            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Failed to decode MediaType"))
+        }
+        self = value
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(self.description)
+    }
 }
 
 extension MediaType {
@@ -281,6 +304,8 @@ extension MediaType {
     public static var applicationTar: Self { .init(type: .application, subType: "x-tar") }
     /// Microsoft Visio
     public static var applicationVsd: Self { .init(type: .application, subType: "vnd.visio") }
+    /// WebAssembly
+    public static var applicationWasm: Self { .init(type: .application, subType: "wasm") }
     /// XHTML
     public static var applicationXhtml: Self { .init(type: .application, subType: "xhtml+xml") }
     /// Microsoft Excel
@@ -385,81 +410,82 @@ extension MediaType {
     public static var multipartForm: Self { .init(type: .multipart, subType: "form-data") }
 
     /// map from extension string to media type
-    static let extensionMediaTypeMap: [String: MediaType] = [
-        "aac": .audioAac,
-        "abw": .applicationAbiWord,
-        "arc": .applicationArc,
-        "azw": .applicationAmzKindleEBook,
-        "bin": .applicationBinary,
-        "bmp": .imageBmp,
-        "bz": .applicationBzip,
-        "bz2": .applicationBzip2,
-        "csh": .applicationCsh,
-        "css": .textCss,
-        "csv": .textCsv,
-        "doc": .applicationMsword,
-        "docx": .applicationDocx,
-        "eot": .applicationEot,
-        "epub": .applicationEpub,
-        "gz": .applicationGzip,
-        "gif": .imageGif,
-        "htm": .textHtml,
-        "html": .textHtml,
-        "ico": .imageIco,
-        "ics": .textICalendar,
-        "jar": .applicationJar,
-        "jpeg": .imageJpeg,
-        "jpg": .imageJpeg,
-        "js": .textJavascript,
-        "json": .applicationJson,
-        "jsonld": .applicationJsonLD,
-        "mid": .audioMidi,
-        "midi": .audioMidi,
-        "mjs": .textJavascript,
-        "mp3": .audioMpeg,
-        "mp4": .videoMp4,
-        "mpeg": .videoMpeg,
-        "mpkg": .applicationMpkg,
-        "odp": .applicationOdp,
-        "ods": .applicationOds,
-        "odt": .applicationOdt,
-        "oga": .audioOgg,
-        "ogv": .videoOgg,
-        "ogx": .applicationOgg,
-        "opus": .audioOpus,
-        "otf": .fontOtf,
-        "png": .imagePng,
-        "pdf": .applicationPdf,
-        "php": .applicationPhp,
-        "ppt": .applicationPpt,
-        "pptx": .applicationPptx,
-        "rar": .applicationRar,
-        "rtf": .applicationRtf,
-        "sh": .applicationSh,
-        "svg": .imageSvg,
-        "swf": .applicationSwf,
-        "tar": .applicationTar,
-        "tif": .imageTiff,
-        "tiff": .imageTiff,
-        "ts": .videoTs,
-        "ttf": .fontTtf,
-        "txt": .textPlain,
-        "vsd": .applicationVsd,
-        "wav": .audioWave,
-        "weba": .audioWebm,
-        "webm": .videoWebm,
-        "webp": .imageWebp,
-        "webmanifest": .applicationManifest,
-        "woff": .fontWoff,
-        "woff2": .fontWoff2,
-        "xhtml": .applicationXhtml,
-        "xls": .applicationXls,
-        "xlsx": .applicationXlsx,
-        "xml": .applicationXml,
-        "zip": .applicationZip,
-        "3gp": .video3gp,
-        "3g2": .video3g2,
-        "7z": .application7z,
+    static let extensionMap: [FileExtension: MediaType] = [
+        .aac: .audioAac,
+        .abw: .applicationAbiWord,
+        .arc: .applicationArc,
+        .azw: .applicationAmzKindleEBook,
+        .bin: .applicationBinary,
+        .bmp: .imageBmp,
+        .bz: .applicationBzip,
+        .bz2: .applicationBzip2,
+        .csh: .applicationCsh,
+        .css: .textCss,
+        .csv: .textCsv,
+        .doc: .applicationMsword,
+        .docx: .applicationDocx,
+        .eot: .applicationEot,
+        .epub: .applicationEpub,
+        .gz: .applicationGzip,
+        .gif: .imageGif,
+        .htm: .textHtml,
+        .html: .textHtml,
+        .ico: .imageIco,
+        .ics: .textICalendar,
+        .jar: .applicationJar,
+        .jpeg: .imageJpeg,
+        .jpg: .imageJpeg,
+        .js: .textJavascript,
+        .json: .applicationJson,
+        .jsonld: .applicationJsonLD,
+        .mid: .audioMidi,
+        .midi: .audioMidi,
+        .mjs: .textJavascript,
+        .mp3: .audioMpeg,
+        .mp4: .videoMp4,
+        .mpeg: .videoMpeg,
+        .mpkg: .applicationMpkg,
+        .odp: .applicationOdp,
+        .ods: .applicationOds,
+        .odt: .applicationOdt,
+        .oga: .audioOgg,
+        .ogv: .videoOgg,
+        .ogx: .applicationOgg,
+        .opus: .audioOpus,
+        .otf: .fontOtf,
+        .png: .imagePng,
+        .pdf: .applicationPdf,
+        .php: .applicationPhp,
+        .ppt: .applicationPpt,
+        .pptx: .applicationPptx,
+        .rar: .applicationRar,
+        .rtf: .applicationRtf,
+        .sh: .applicationSh,
+        .svg: .imageSvg,
+        .swf: .applicationSwf,
+        .tar: .applicationTar,
+        .tif: .imageTiff,
+        .tiff: .imageTiff,
+        .ts: .videoTs,
+        .ttf: .fontTtf,
+        .txt: .textPlain,
+        .vsd: .applicationVsd,
+        .wasm: .applicationWasm,
+        .wav: .audioWave,
+        .weba: .audioWebm,
+        .webm: .videoWebm,
+        .webp: .imageWebp,
+        .webmanifest: .applicationManifest,
+        .woff: .fontWoff,
+        .woff2: .fontWoff2,
+        .xhtml: .applicationXhtml,
+        .xls: .applicationXls,
+        .xlsx: .applicationXlsx,
+        .xml: .applicationXml,
+        .zip: .applicationZip,
+        .threeGP: .video3gp,
+        .threeG2: .video3g2,
+        .sevenZ: .application7z,
     ]
 }
 

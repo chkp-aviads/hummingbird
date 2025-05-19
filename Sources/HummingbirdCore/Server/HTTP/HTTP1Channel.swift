@@ -22,15 +22,52 @@ import NIOHTTPTypesHTTP1
 public struct HTTP1Channel: ServerChildChannel, HTTPChannelHandler {
     public typealias Value = NIOAsyncChannel<HTTPRequestPart, HTTPResponsePart>
 
+    /// HTTP1Channel configuration
+    public struct Configuration: Sendable {
+        /// Additional channel handlers to add to channel pipeline after HTTP part decoding and before HTTP request handling
+        public var additionalChannelHandlers: @Sendable () -> [any RemovableChannelHandler]
+        /// Time before closing an idle channel.
+        public var idleTimeout: TimeAmount?
+        /// Internal flag for enabling/disabling pipeline assistance
+        package var pipliningAssistance: Bool = false
+
+        ///  Initialize HTTP1Channel.Configuration
+        /// - Parameters:
+        ///   - additionalChannelHandlers: Additional channel handlers to add to channel pipeline after HTTP part decoding and
+        ///         before HTTP request processing
+        ///   - idleTimeout: Time before closing an idle channel
+        public init(
+            additionalChannelHandlers: @autoclosure @escaping @Sendable () -> [any RemovableChannelHandler] = [],
+            idleTimeout: TimeAmount? = nil
+        ) {
+            self.additionalChannelHandlers = additionalChannelHandlers
+            self.idleTimeout = idleTimeout
+        }
+    }
+
     ///  Initialize HTTP1Channel
     /// - Parameters:
     ///   - responder: Function returning a HTTP response for a HTTP request
-    ///   - additionalChannelHandlers: Additional channel handlers to add to channel pipeline
+    ///   - additionalChannelHandlers: Additional channel handlers to add to channel pipeline after HTTP part decoding and
+    ///         before HTTP request processing
+    @available(*, deprecated, renamed: "HTTP1Channel(responder:configuration:)")
     public init(
         responder: @escaping HTTPChannelHandler.Responder,
-        additionalChannelHandlers: @escaping @Sendable () -> [any RemovableChannelHandler] = { [] }
+        additionalChannelHandlers: @escaping @Sendable () -> [any RemovableChannelHandler]
     ) {
-        self.additionalChannelHandlers = additionalChannelHandlers
+        self.configuration = .init(additionalChannelHandlers: additionalChannelHandlers())
+        self.responder = responder
+    }
+
+    ///  Initialize HTTP1Channel
+    /// - Parameters:
+    ///   - responder: Function returning a HTTP response for a HTTP request
+    ///   - configuration: HTTP1 channel configuration
+    public init(
+        responder: @escaping HTTPChannelHandler.Responder,
+        configuration: Configuration = .init()
+    ) {
+        self.configuration = configuration
         self.responder = responder
     }
 
@@ -40,20 +77,21 @@ public struct HTTP1Channel: ServerChildChannel, HTTPChannelHandler {
     ///   - logger: Logger used during setup
     /// - Returns: Object to process input/output on child channel
     public func setup(channel: Channel, logger: Logger) -> EventLoopFuture<Value> {
-        let childChannelHandlers: [any ChannelHandler] =
-            [HTTP1ToHTTPServerCodec(secure: false)] + self.additionalChannelHandlers() + [
-                HTTPUserEventHandler(logger: logger),
-            ]
-        return channel.eventLoop.makeCompletedFuture {
+        channel.eventLoop.makeCompletedFuture {
             try channel.pipeline.syncOperations.configureHTTPServerPipeline(
-                withPipeliningAssistance: false, // HTTP is pipelined by NIOAsyncChannel
-                withErrorHandling: true,
-                withOutboundHeaderValidation: false // Swift HTTP Types are already doing this validation
+                withPipeliningAssistance: self.configuration.pipliningAssistance,  // HTTP is pipelined by NIOAsyncChannel
+                withErrorHandling: false,  // We doing the error handling in Application
+                withOutboundHeaderValidation: false  // Swift HTTP Types are already doing this validation
             )
-            try channel.pipeline.syncOperations.addHandlers(childChannelHandlers)
+            try channel.pipeline.syncOperations.addHandler(HTTP1ToHTTPServerCodec(secure: false))
+            try channel.pipeline.syncOperations.addHandlers(self.configuration.additionalChannelHandlers())
+            if let idleTimeout = self.configuration.idleTimeout {
+                try channel.pipeline.syncOperations.addHandler(IdleStateHandler(readTimeout: idleTimeout))
+            }
+            try channel.pipeline.syncOperations.addHandler(HTTPUserEventHandler(logger: logger))
             return try NIOAsyncChannel(
                 wrappingChannelSynchronously: channel,
-                configuration: .init()
+                configuration: .init(isOutboundHalfClosureEnabled: true)
             )
         }
     }
@@ -62,6 +100,7 @@ public struct HTTP1Channel: ServerChildChannel, HTTPChannelHandler {
     /// - Parameters:
     ///   - asyncChannel: NIOAsyncChannel handling HTTP parts
     ///   - logger: Logger to use while processing messages
+    @inlinable
     public func handle(
         value asyncChannel: NIOCore.NIOAsyncChannel<HTTPRequestPart, HTTPResponsePart>,
         logger: Logging.Logger
@@ -70,7 +109,7 @@ public struct HTTP1Channel: ServerChildChannel, HTTPChannelHandler {
     }
 
     public let responder: HTTPChannelHandler.Responder
-    let additionalChannelHandlers: @Sendable () -> [any RemovableChannelHandler]
+    public let configuration: Configuration
 }
 
 /// Extend NIOAsyncChannel to ServerChildChannelValue so it can be used in a ServerChildChannel

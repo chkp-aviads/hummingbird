@@ -12,9 +12,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-import Foundation
 import Logging
 import NIOPosix
+
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 
 /// Local file system file provider used by FileMiddleware. All file accesses are relative to a root folder
 public struct LocalFileSystem: FileProvider {
@@ -84,16 +89,16 @@ public struct LocalFileSystem: FileProvider {
     /// - Returns: File attributes
     public func getAttributes(id path: FileIdentifier) async throws -> FileAttributes? {
         do {
-            let lstat = try await self.fileIO.fileIO.lstat(path: path)
-            let isFolder = (lstat.st_mode & S_IFMT) == S_IFDIR
-            #if os(Linux)
-            let modificationDate = Double(lstat.st_mtim.tv_sec) + (Double(lstat.st_mtim.tv_nsec) / 1_000_000_000.0)
+            let stat = try await self.fileIO.fileIO.stat(path: path)
+            let isFolder = (stat.st_mode & S_IFMT) == S_IFDIR
+            #if os(Linux) || os(Android)
+            let modificationDate = Double(stat.st_mtim.tv_sec) + (Double(stat.st_mtim.tv_nsec) / 1_000_000_000.0)
             #else
-            let modificationDate = Double(lstat.st_mtimespec.tv_sec) + (Double(lstat.st_mtimespec.tv_nsec) / 1_000_000_000.0)
+            let modificationDate = Double(stat.st_mtimespec.tv_sec) + (Double(stat.st_mtimespec.tv_nsec) / 1_000_000_000.0)
             #endif
             return .init(
                 isFolder: isFolder,
-                size: numericCast(lstat.st_size),
+                size: numericCast(stat.st_size),
                 modificationDate: Date(timeIntervalSince1970: modificationDate)
             )
         } catch {

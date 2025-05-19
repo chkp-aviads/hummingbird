@@ -19,7 +19,7 @@ import Logging
 import NIOCore
 import XCTest
 
-final class HummingBirdURLEncodedTests: XCTestCase {
+final class URLEncodedFormTests: XCTestCase {
     struct User: ResponseCodable {
         let name: String
         let email: String
@@ -60,7 +60,7 @@ final class HummingBirdURLEncodedTests: XCTestCase {
     func testEncode() async throws {
         let router = Router(context: URLEncodedCodingRequestContext.self)
         router.get("/user") { _, _ -> User in
-            return User(name: "John Smith", email: "john.smith@email.com", age: 25)
+            User(name: "John Smith", email: "john.smith@email.com", age: 25)
         }
         let app = Application(responder: router.buildResponder())
         try await app.test(.router) { client in

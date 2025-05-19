@@ -15,7 +15,8 @@
 import Hummingbird
 
 /// Router middleware that applies a middleware chain to URIs with a specified prefix
-public struct RouteGroup<Context: RouterRequestContext, Handler: MiddlewareProtocol>: RouterMiddleware where Handler.Input == Request, Handler.Output == Response, Handler.Context == Context {
+public struct RouteGroup<Context: RouterRequestContext, Handler: MiddlewareProtocol>: RouterMiddleware
+where Handler.Input == Request, Handler.Output == Response, Handler.Context == Context {
     public typealias Input = Request
     public typealias Output = Response
 
@@ -48,6 +49,44 @@ public struct RouteGroup<Context: RouterRequestContext, Handler: MiddlewareProto
         routerBuildState.routeGroupPath = self.fullPath
         self.handler = RouterBuilderState.$current.withValue(routerBuildState) {
             builder()
+        }
+        self.routerPath = routerPath
+    }
+
+    /// Create RouteGroup from RequestContext transform and result builder
+    /// - Parameters:
+    ///   - routerPath: Path local to group route this group is defined in
+    ///   - context: RequestContext to convert to
+    ///   - builder: RouteGroup builder
+    ///
+    /// The ``Hummingbird/RequestContext`` that the group uses must conform to ``Hummingbird/ChildRequestContext``
+    /// and the `ParentContext` of that `RequestContext` be the `RequestContext` we are transforming
+    /// from eg
+    /// ```
+    /// struct TransformedRequestContext: ChildRequestContext {
+    ///     typealias ParentContext = BasicRequestContext
+    ///     var coreContext: CoreRequestContextStorage
+    ///     init(context: ParentContext) throws {
+    ///         self.coreContext = .init(source: context)
+    ///     }
+    /// }
+    /// ```
+    public init<ChildHandler: MiddlewareProtocol, ChildContext: ChildRequestContext & RouterRequestContext>(
+        _ routerPath: RouterPath,
+        context: ChildContext.Type,
+        @MiddlewareFixedTypeBuilder<Request, Response, ChildContext> builder: () -> ChildHandler
+    ) where ChildContext == ChildContext, Handler == ThrowingContextTransform<Context, ChildContext, ChildHandler> {
+        var routerPath = routerPath
+        // Get builder state from service context
+        var routerBuildState = RouterBuilderState.current ?? .init(options: [])
+        if routerBuildState.options.contains(.caseInsensitive) {
+            routerPath = routerPath.lowercased()
+        }
+        let parentGroupPath = routerBuildState.routeGroupPath
+        self.fullPath = parentGroupPath.appendingPath(routerPath)
+        routerBuildState.routeGroupPath = self.fullPath
+        self.handler = RouterBuilderState.$current.withValue(routerBuildState) {
+            ThrowingContextTransform(to: ChildHandler.Context.self, builder: builder)
         }
         self.routerPath = routerPath
     }

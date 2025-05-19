@@ -16,22 +16,33 @@ import Hummingbird
 import XCTest
 
 final class URLEncodedFormEncoderTests: XCTestCase {
-    static func XCTAssertEncodedEqual(_ lhs: String, _ rhs: String) {
+    static func XCTAssertEncodedEqual(
+        _ lhs: String,
+        _ rhs: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
         let lhs = lhs.split(separator: "&")
             .sorted { $0 < $1 }
             .joined(separator: "&")
         let rhs = rhs.split(separator: "&")
             .sorted { $0 < $1 }
             .joined(separator: "&")
-        XCTAssertEqual(lhs, rhs)
+        XCTAssertEqual(lhs, rhs, file: file, line: line)
     }
 
-    func testForm(_ value: some Encodable, query: String, encoder: URLEncodedFormEncoder = .init()) {
+    func testForm(
+        _ value: some Encodable,
+        query: String,
+        encoder: URLEncodedFormEncoder = .init(),
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
         do {
             let query2 = try encoder.encode(value)
-            Self.XCTAssertEncodedEqual(query2, query)
+            Self.XCTAssertEncodedEqual(query2, query, file: file, line: line)
         } catch {
-            XCTFail("\(error)")
+            XCTFail("\(error)", file: file, line: line)
         }
     }
 
@@ -85,8 +96,25 @@ final class URLEncodedFormEncoderTests: XCTestCase {
             let f: [Float]
             let d: [Double]
         }
-        let test = Test(b: [true], i: [34], i8: [23], i16: [9], i32: [-6872], i64: [23], u: [0], u8: [255], u16: [7673], u32: [88222], u64: [234], f: [-1.1], d: [8])
-        self.testForm(test, query: "b[]=true&i[]=34&i8[]=23&i16[]=9&i32[]=-6872&i64[]=23&u[]=0&u8[]=255&u16[]=7673&u32[]=88222&u64[]=234&f[]=-1.1&d[]=8.0")
+        let test = Test(
+            b: [true],
+            i: [34],
+            i8: [23],
+            i16: [9],
+            i32: [-6872],
+            i64: [23],
+            u: [0],
+            u8: [255],
+            u16: [7673],
+            u32: [88222],
+            u64: [234],
+            f: [-1.1],
+            d: [8]
+        )
+        self.testForm(
+            test,
+            query: "b[]=true&i[]=34&i8[]=23&i16[]=9&i32[]=-6872&i64[]=23&u[]=0&u8[]=255&u16[]=7673&u32[]=88222&u64[]=234&f[]=-1.1&d[]=8.0"
+        )
     }
 
     func testStringSpecialCharactersEncode() {
@@ -94,7 +122,7 @@ final class URLEncodedFormEncoderTests: XCTestCase {
             let a: String
         }
         let test = Test(a: "adam+!@£$%^&*()_=")
-        self.testForm(test, query: "a=adam%2B%21%40%C2%A3%24%25%5E%26%2A%28%29_%3D")
+        self.testForm(test, query: "a=adam+!@%C2%A3$%25%5E%26*()_%3D")
     }
 
     func testContainingStructureEncode() {
@@ -147,13 +175,13 @@ final class URLEncodedFormEncoderTests: XCTestCase {
         self.testForm(test, query: "d=2387643.0")
         self.testForm(test, query: "d=980694843000.0", encoder: .init(dateEncodingStrategy: .millisecondsSince1970))
         self.testForm(test, query: "d=980694843.0", encoder: .init(dateEncodingStrategy: .secondsSince1970))
-        self.testForm(test, query: "d=2001-01-28T15%3A14%3A03Z", encoder: .init(dateEncodingStrategy: .iso8601))
+        self.testForm(test, query: "d=2001-01-28T15:14:03Z", encoder: .init(dateEncodingStrategy: .iso8601))
 
         let dateFormatter = DateFormatter()
         dateFormatter.locale = Locale(identifier: "en_US_POSIX")
         dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
         dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
-        self.testForm(test, query: "d=2001-01-28T15%3A14%3A03.000Z", encoder: .init(dateEncodingStrategy: .formatted(dateFormatter)))
+        self.testForm(test, query: "d=2001-01-28T15:14:03.000Z", encoder: .init(dateEncodingStrategy: .formatted(dateFormatter)))
     }
 
     func testDataBlobEncode() {
@@ -172,5 +200,28 @@ final class URLEncodedFormEncoderTests: XCTestCase {
         }
         let test = Test(name: "John", age: nil)
         self.testForm(test, query: "name=John")
+    }
+
+    func testURLEncode() throws {
+        struct URLForm: Encodable, Equatable {
+            let site: URL
+
+            init(site: URL) {
+                self.site = site
+            }
+
+            enum CodingKeys: CodingKey {
+                case site
+            }
+
+            func encode(to encoder: any Encoder) throws {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                try container.encode(self.site, forKey: .site)
+            }
+        }
+
+        let test = URLForm(site: URL(string: "https://hummingbird.codes")!)
+
+        self.testForm(test, query: "site=https://hummingbird.codes")
     }
 }

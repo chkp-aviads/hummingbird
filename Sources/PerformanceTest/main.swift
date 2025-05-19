@@ -25,17 +25,20 @@ let port = env.get("SERVER_PORT", as: Int.self) ?? 8080
 // create app
 let elg = MultiThreadedEventLoopGroup(numberOfThreads: 4)
 var router = Router()
+router.addMiddleware {
+    FileMiddleware()
+}
 
 // number of raw requests
 // ./wrk -c 128 -d 15s -t 8 http://localhost:8080
 router.get { _, _ in
-    return "Hello, world"
+    "Hello, world"
 }
 
 // request with a body
 // ./wrk -c 128 -d 15s -t 8 -s scripts/post.lua http://localhost:8080
 router.post { request, _ in
-    return Response(status: .ok, body: .init(asyncSequence: request.body))
+    Response(status: .ok, body: .init(asyncSequence: request.body))
 }
 
 struct Object: ResponseEncodable {
@@ -45,13 +48,14 @@ struct Object: ResponseEncodable {
 // return JSON
 // ./wrk -c 128 -d 15s -t 8 http://localhost:8080/json
 router.get("json") { _, _ in
-    return Object(message: "Hello, world")
+    Object(message: "Hello, world")
 }
 
 // return JSON
 // ./wrk -c 128 -d 15s -t 8 http://localhost:8080/json
 router.get("wait") { _, _ in
-    try await Task.sleep(for: .seconds(8))
+    try await Task.sleep(nanoseconds: 1_000_000_000 * 8)
+//    try await Task.sleep(for: .seconds(8))
     return "I waited"
 }
 

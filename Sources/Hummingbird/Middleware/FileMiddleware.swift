@@ -12,12 +12,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-import Foundation
 import HTTPTypes
 import HummingbirdCore
 import Logging
 import NIOCore
 import NIOPosix
+
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 
 /// Protocol for all the file attributes required by ``FileMiddleware``
 ///
@@ -41,11 +46,13 @@ public protocol FileMiddlewareFileAttributes {
 /// "if-modified-since", "if-none-match", "if-range" and 'range" headers. It will output "content-length",
 /// "modified-date", "eTag", "content-type", "cache-control" and "content-range" headers where
 /// they are relevant.
-public struct FileMiddleware<Context: RequestContext, Provider: FileProvider>: RouterMiddleware where Provider.FileAttributes: FileMiddlewareFileAttributes {
+public struct FileMiddleware<Context: RequestContext, Provider: FileProvider>: RouterMiddleware
+where Provider.FileAttributes: FileMiddlewareFileAttributes {
     let cacheControl: CacheControl
     let searchForIndexHtml: Bool
     let urlBasePath: String?
     let fileProvider: Provider
+    let mediaTypeFileExtensionMap: [MediaType.FileExtension: MediaType]
 
     /// Create FileMiddleware
     /// - Parameters:
@@ -63,13 +70,16 @@ public struct FileMiddleware<Context: RequestContext, Provider: FileProvider>: R
         threadPool: NIOThreadPool = NIOThreadPool.singleton,
         logger: Logger = Logger(label: "FileMiddleware")
     ) where Provider == LocalFileSystem {
-        self.cacheControl = cacheControl
-        self.searchForIndexHtml = searchForIndexHtml
-        self.urlBasePath = urlBasePath.map { String($0.dropSuffix("/")) }
-        self.fileProvider = LocalFileSystem(
-            rootFolder: rootFolder,
-            threadPool: threadPool,
-            logger: logger
+        self.init(
+            fileProvider: LocalFileSystem(
+                rootFolder: rootFolder,
+                threadPool: threadPool,
+                logger: logger
+            ),
+            urlBasePath: urlBasePath,
+            cacheControl: cacheControl,
+            searchForIndexHtml: searchForIndexHtml,
+            mediaTypeFileExtensionMap: [:]
         )
     }
 
@@ -85,10 +95,58 @@ public struct FileMiddleware<Context: RequestContext, Provider: FileProvider>: R
         cacheControl: CacheControl = .init([]),
         searchForIndexHtml: Bool = false
     ) {
+        self.init(
+            fileProvider: fileProvider,
+            urlBasePath: urlBasePath,
+            cacheControl: cacheControl,
+            searchForIndexHtml: searchForIndexHtml,
+            mediaTypeFileExtensionMap: [:]
+        )
+    }
+
+    private init(
+        fileProvider: Provider,
+        urlBasePath: String? = nil,
+        cacheControl: CacheControl = .init([]),
+        searchForIndexHtml: Bool = false,
+        mediaTypeFileExtensionMap: [MediaType.FileExtension: MediaType]
+    ) {
         self.cacheControl = cacheControl
         self.searchForIndexHtml = searchForIndexHtml
         self.urlBasePath = urlBasePath.map { String($0.dropSuffix("/")) }
         self.fileProvider = fileProvider
+        self.mediaTypeFileExtensionMap = mediaTypeFileExtensionMap
+    }
+
+    public func withAdditionalMediaType(_ mediaType: MediaType, mappedToFileExtension fileExtension: String) -> FileMiddleware {
+        withAdditionalMediaType(mediaType, mappedToFileExtension: MediaType.FileExtension(fileExtension))
+    }
+
+    public func withAdditionalMediaType(_ mediaType: MediaType, mappedToFileExtension fileExtension: MediaType.FileExtension) -> FileMiddleware {
+        withAdditionalMediaTypes(forFileExtensions: [fileExtension: mediaType])
+    }
+
+    public func withAdditionalMediaTypes(forFileExtensions extensionToMediaTypeMap: [String: MediaType]) -> FileMiddleware {
+        withAdditionalMediaTypes(
+            forFileExtensions: extensionToMediaTypeMap.reduce(
+                into: [MediaType.FileExtension: MediaType](),
+                {
+                    $0[.init($1.key)] = $1.value
+                }
+            )
+        )
+    }
+
+    public func withAdditionalMediaTypes(forFileExtensions extensionToMediaTypeMap: [MediaType.FileExtension: MediaType]) -> FileMiddleware {
+        let extensions = mediaTypeFileExtensionMap.merging(extensionToMediaTypeMap, uniquingKeysWith: { _, new in new })
+
+        return FileMiddleware(
+            fileProvider: fileProvider,
+            urlBasePath: urlBasePath,
+            cacheControl: cacheControl,
+            searchForIndexHtml: searchForIndexHtml,
+            mediaTypeFileExtensionMap: extensions
+        )
     }
 
     /// Handle request
@@ -106,7 +164,7 @@ public struct FileMiddleware<Context: RequestContext, Provider: FileProvider>: R
             }
 
             // Remove percent encoding from URI path
-            guard var path = request.uri.path.removingPercentEncoding else {
+            guard var path = request.uri.path.removingURLPercentEncoding() else {
                 throw HTTPError(.badRequest, message: "Invalid percent encoding in URL")
             }
 
@@ -174,7 +232,7 @@ extension FileMiddleware {
     /// Return file attributes, and actual file path
     private func getFileAttributes(_ path: String) async throws -> (path: String, id: Provider.FileIdentifier, attributes: Provider.FileAttributes) {
         guard let id = self.fileProvider.getFileIdentifier(path),
-              let attributes = try await self.fileProvider.getAttributes(id: id)
+            let attributes = try await self.fileProvider.getAttributes(id: id)
         else {
             throw HTTPError(.notFound)
         }
@@ -184,7 +242,7 @@ extension FileMiddleware {
             guard self.searchForIndexHtml else { throw HTTPError(.notFound) }
             let indexPath = self.appendingPathComponent(path, "index.html")
             guard let indexID = self.fileProvider.getFileIdentifier(indexPath),
-                  let indexAttributes = try await self.fileProvider.getAttributes(id: indexID)
+                let indexAttributes = try await self.fileProvider.getAttributes(id: indexID)
             else {
                 throw HTTPError(.notFound)
             }
@@ -207,14 +265,14 @@ extension FileMiddleware {
         // content-length
         headers[.contentLength] = String(describing: attributes.size)
         // modified-date
-        let modificationDateString = DateCache.rfc1123Formatter.string(from: attributes.modificationDate)
+        let modificationDateString = attributes.modificationDate.httpHeader
         headers[.lastModified] = modificationDateString
         // eTag (constructed from modification date and content size)
         headers[.eTag] = eTag
 
         // content-type
         if let ext = self.fileExtension(for: path) {
-            if let contentType = MediaType.getMediaType(forExtension: ext) {
+            if let contentType = mediaTypeFileExtensionMap[ext] ?? MediaType.getMediaType(forExtension: ext) {
                 headers[.contentType] = contentType.description
             }
         }
@@ -238,7 +296,7 @@ extension FileMiddleware {
         }
         // verify if-modified-since
         else if let ifModifiedSince = request.headers[.ifModifiedSince] {
-            if let ifModifiedSinceDate = DateCache.rfc1123Formatter.date(from: ifModifiedSince) {
+            if let ifModifiedSinceDate = Date(httpHeader: ifModifiedSince) {
                 // round modification date of file down to seconds for comparison
                 let modificationDateTimeInterval = attributes.modificationDate.timeIntervalSince1970.rounded(.down)
                 let ifModifiedSinceDateTimeInterval = ifModifiedSinceDate.timeIntervalSince1970
@@ -286,7 +344,8 @@ extension FileMiddleware {
                 return lowerBound...Int.max
             } else {
                 guard let lowerBound = Int(lower),
-                      let upperBound = Int(upper) else { return nil }
+                    let upperBound = Int(upper)
+                else { return nil }
                 return lowerBound...upperBound
             }
         } catch {
@@ -296,7 +355,7 @@ extension FileMiddleware {
 
     private func createETag(_ strings: [String]) -> String {
         let string = strings.joined(separator: "-")
-        let buffer = Array<UInt8>(unsafeUninitializedCapacity: 16) { bytes, size in
+        let buffer = [UInt8](unsafeUninitializedCapacity: 16) { bytes, size in
             var index = 0
             for i in 0..<16 {
                 bytes[i] = 0
@@ -322,7 +381,7 @@ extension FileMiddleware {
         }
     }
 
-    private func fileExtension(for path: String) -> String? {
+    private func fileExtension(for path: String) -> MediaType.FileExtension? {
         if let extPointIndex = path.lastIndex(of: ".") {
             let extIndex = path.index(after: extPointIndex)
             return .init(path.suffix(from: extIndex))

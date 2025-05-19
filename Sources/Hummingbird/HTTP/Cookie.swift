@@ -12,14 +12,21 @@
 //
 //===----------------------------------------------------------------------===//
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 /// Structure holding a single cookie
 public struct Cookie: Sendable, CustomStringConvertible {
-    public enum SameSite: String {
+    public enum SameSite: String, Sendable {
         case lax = "Lax"
-        case secure = "Secure"
+        case strict = "Strict"
         case none = "None"
+
+        @available(*, deprecated, renamed: "strict", message: "Secure is not a valid value for SameSite, use strict instead")
+        static var secure: Self { .strict }
     }
 
     /// Cookie name
@@ -30,20 +37,20 @@ public struct Cookie: Sendable, CustomStringConvertible {
     public let properties: Properties
 
     /// indicates the maximum lifetime of the cookie
-    public var expires: Date? { return self.properties[.expires].map { DateCache.rfc1123Formatter.date(from: $0) } ?? nil }
+    public var expires: Date? { self.properties[.expires].flatMap { Date(httpHeader: $0) } }
     /// indicates the maximum lifetime of the cookie in seconds. Max age has precedence over expires
     /// (not all user agents support max-age)
-    public var maxAge: Int? { return self.properties[.maxAge].map { Int($0) } ?? nil }
+    public var maxAge: Int? { self.properties[.maxAge].map { Int($0) } ?? nil }
     /// specifies those hosts to which the cookie will be sent
-    public var domain: String? { return self.properties[.domain] }
+    public var domain: String? { self.properties[.domain] }
     /// The scope of each cookie is limited to a set of paths, controlled by the Path attribute
-    public var path: String? { return self.properties[.path] }
+    public var path: String? { self.properties[.path] }
     /// The Secure attribute limits the scope of the cookie to "secure" channels
-    public var secure: Bool { return self.properties[.secure] != nil }
+    public var secure: Bool { self.properties[.secure] != nil }
     /// The HttpOnly attribute limits the scope of the cookie to HTTP requests
-    public var httpOnly: Bool { return self.properties[.httpOnly] != nil }
+    public var httpOnly: Bool { self.properties[.httpOnly] != nil }
     /// The SameSite attribute lets servers specify whether/when cookies are sent with cross-origin requests
-    public var sameSite: SameSite? { return self.properties[.sameSite].map { SameSite(rawValue: $0) } ?? nil }
+    public var sameSite: SameSite? { self.properties[.sameSite].map { SameSite(rawValue: $0) } ?? nil }
 
     /// Create `Cookie`
     /// - Parameters:
@@ -68,7 +75,7 @@ public struct Cookie: Sendable, CustomStringConvertible {
         self.name = name
         self.value = value
         var properties = Properties()
-        properties[.expires] = expires.map { DateCache.rfc1123Formatter.string(from: $0) }
+        properties[.expires] = expires?.httpHeader
         properties[.maxAge] = maxAge?.description
         properties[.domain] = domain
         properties[.path] = path
@@ -99,10 +106,11 @@ public struct Cookie: Sendable, CustomStringConvertible {
         httpOnly: Bool = true,
         sameSite: SameSite
     ) {
+        assert(!(secure == false && sameSite == .none), "Cookies with SameSite set to None require the Secure attribute to be set")
         self.name = name
         self.value = value
         var properties = Properties()
-        properties[.expires] = expires.map { DateCache.rfc1123Formatter.string(from: $0) }
+        properties[.expires] = expires?.httpHeader
         properties[.maxAge] = maxAge?.description
         properties[.domain] = domain
         properties[.path] = path

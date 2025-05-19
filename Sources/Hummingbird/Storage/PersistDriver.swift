@@ -25,7 +25,7 @@ public protocol PersistDriver: Service {
     ///   - key: Key to store value against
     ///   - value: Codable value to store
     ///   - expires: If non-nil defines time that value will expire
-    func create<Object: Codable & Sendable>(key: String, value: Object, expires: Duration?) async throws
+    func create<Object: Codable & Sendable>(key: String, value: Object, expires: TimeAmount?) async throws
 
     /// set value for key. If value already exists overwrite it
     /// - Parameters:
@@ -33,7 +33,7 @@ public protocol PersistDriver: Service {
     ///   - value: Codable value to store
     ///   - expires: If non-nil defines time that value will expire in. If nil and value already exists
     ///      and it already has an expiration time then original expiration time should be conserved.
-    func set<Object: Codable & Sendable>(key: String, value: Object, expires: Duration?) async throws
+    func set<Object: Codable & Sendable>(key: String, value: Object, expires: TimeAmount?) async throws
 
     /// get value for key
     /// - Parameters:

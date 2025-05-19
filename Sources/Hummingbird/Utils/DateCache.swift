@@ -16,21 +16,18 @@ import AsyncAlgorithms
 import Atomics
 import NIOCore
 import NIOPosix
-#if canImport(Glibc)
-import Glibc
-#elseif canImport(Musl)
-import Musl
-#elseif canImport(Darwin)
-import Darwin.C
-#else
-#error("Unsupported platform")
-#endif
 import ServiceLifecycle
+
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 
 /// Current date formatted cache service
 ///
 /// Getting the current date formatted is an expensive operation. This creates a task that will
-/// update a cached version of the date in the format as detailed in RFC1123 once every second.
+/// update a cached version of the date in the format as detailed in RFC9110 once every second.
 final class DateCache: Service {
     final class DateContainer: AtomicReference, Sendable {
         let date: String
@@ -41,73 +38,118 @@ final class DateCache: Service {
     }
 
     let dateContainer: ManagedAtomic<DateContainer>
+    let evenetLoop: EventLoop
 
-    init() {
-        let epochTime = time(nil)
-        self.dateContainer = .init(.init(date: Self.formatRFC1123Date(epochTime)))
+    init(eventLoop: EventLoop) {
+        self.evenetLoop = eventLoop
+        self.dateContainer = .init(.init(date: Date.now.httpHeader))
     }
 
     public func run() async throws {
-        let timerSequence = AsyncTimerSequence(interval: .seconds(1), clock: .suspending)
+        let timerSequence = NIOAsyncTimerSequence(interval: TimeAmount.seconds(1), eventLoop: evenetLoop)
             .cancelOnGracefulShutdown()
         for try await _ in timerSequence {
-            let epochTime = time(nil)
-            self.dateContainer.store(.init(date: Self.formatRFC1123Date(epochTime)), ordering: .releasing)
+            self.dateContainer.store(.init(date: Date.now.httpHeader), ordering: .releasing)
         }
     }
 
     public var date: String {
-        return self.dateContainer.load(ordering: .acquiring).date
+        self.dateContainer.load(ordering: .acquiring).date
     }
-
-    /// Render Epoch seconds as RFC1123 formatted date
-    /// - Parameter epochTime: epoch seconds to render
-    /// - Returns: Formatted date
-    public static func formatRFC1123Date(_ epochTime: Int) -> String {
-        var epochTime = epochTime
-        var timeStruct = tm.init()
-        gmtime_r(&epochTime, &timeStruct)
-        let year = Int(timeStruct.tm_year + 1900)
-        let day = self.dayNames[numericCast(timeStruct.tm_wday)]
-        let month = self.monthNames[numericCast(timeStruct.tm_mon)]
-        var formatted = day
-        formatted.reserveCapacity(30)
-        formatted += ", "
-        formatted += timeStruct.tm_mday.description
-        formatted += " "
-        formatted += month
-        formatted += " "
-        formatted += self.numberNames[year / 100]
-        formatted += self.numberNames[year % 100]
-        formatted += " "
-        formatted += self.numberNames[numericCast(timeStruct.tm_hour)]
-        formatted += ":"
-        formatted += self.numberNames[numericCast(timeStruct.tm_min)]
-        formatted += ":"
-        formatted += self.numberNames[numericCast(timeStruct.tm_sec)]
-        formatted += " GMT"
-
-        return formatted
-    }
-
-    private static let dayNames = [
-        "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat",
-    ]
-
-    private static let monthNames = [
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-    ]
-
-    private static let numberNames = [
-        "00", "01", "02", "03", "04", "05", "06", "07", "08", "09",
-        "10", "11", "12", "13", "14", "15", "16", "17", "18", "19",
-        "20", "21", "22", "23", "24", "25", "26", "27", "28", "29",
-        "30", "31", "32", "33", "34", "35", "36", "37", "38", "39",
-        "40", "41", "42", "43", "44", "45", "46", "47", "48", "49",
-        "50", "51", "52", "53", "54", "55", "56", "57", "58", "59",
-        "60", "61", "62", "63", "64", "65", "66", "67", "68", "69",
-        "70", "71", "72", "73", "74", "75", "76", "77", "78", "79",
-        "80", "81", "82", "83", "84", "85", "86", "87", "88", "89",
-        "90", "91", "92", "93", "94", "95", "96", "97", "98", "99",
-    ]
 }
+
+/// An `AsyncSequence` that produces elements at regular intervals using SwiftNIO.
+public struct NIOAsyncTimerSequence: AsyncSequence {
+  public typealias Element = DispatchTime
+  
+  /// The iterator for a `NIOAsyncTimerSequence` instance.
+  public struct Iterator: AsyncIteratorProtocol {
+    var eventLoop: EventLoop?
+    let interval: TimeAmount
+    var last: DispatchTime?
+    
+    init(interval: TimeAmount, eventLoop: EventLoop) {
+      self.eventLoop = eventLoop
+      self.interval = interval
+    }
+    
+    public mutating func next() async -> DispatchTime? {
+      guard let eventLoop = self.eventLoop else {
+        return nil
+      }
+      
+      let now = DispatchTime.now()
+      let nextTime: DispatchTime
+      
+      if let last = self.last {
+        // Schedule next tick based on the previous time
+        nextTime = DispatchTime(uptimeNanoseconds: last.uptimeNanoseconds + UInt64(interval.nanoseconds))
+        
+        // Calculate wait duration
+        let waitTimeNanos = Int64(nextTime.uptimeNanoseconds) - Int64(now.uptimeNanoseconds)
+        if waitTimeNanos > 0 {
+          do {
+            try await sleep(for: TimeAmount.nanoseconds(waitTimeNanos), on: eventLoop)
+          } catch {
+            self.eventLoop = nil
+            return nil
+          }
+        }
+      } else {
+        // First iteration - start immediately
+        nextTime = now
+      }
+      
+      let currentTime = DispatchTime.now()
+      self.last = nextTime
+      return currentTime
+    }
+    
+    private func sleep(for duration: TimeAmount, on eventLoop: EventLoop) async throws {
+      try await withCheckedThrowingContinuation { continuation in
+        let scheduled = eventLoop.scheduleTask(in: duration) {
+          continuation.resume()
+        }
+        
+        // Handle task cancellation
+        Task {
+          await withTaskCancellationHandler {
+            // Nothing needed here - onCancel will handle it
+          } onCancel: {
+            scheduled.cancel()
+            continuation.resume(throwing: CancellationError())
+          }
+        }
+      }
+    }
+  }
+  
+  let eventLoop: EventLoop
+  let interval: TimeAmount
+  
+  /// Create a `NIOAsyncTimerSequence` with a given repeating interval.
+  public init(interval: TimeAmount, eventLoop: EventLoop) {
+    self.eventLoop = eventLoop
+    self.interval = interval
+  }
+  
+  public func makeAsyncIterator() -> Iterator {
+    Iterator(interval: interval, eventLoop: eventLoop)
+  }
+}
+
+extension NIOAsyncTimerSequence {
+  /// Create a `NIOAsyncTimerSequence` with a given repeating interval.
+  public static func repeating(
+    every interval: TimeAmount,
+    eventLoop: EventLoop
+  ) -> NIOAsyncTimerSequence {
+    return NIOAsyncTimerSequence(interval: interval, eventLoop: eventLoop)
+  }
+}
+
+extension NIOAsyncTimerSequence: Sendable {}
+
+@available(*, unavailable)
+extension NIOAsyncTimerSequence.Iterator: Sendable {}
+

@@ -12,20 +12,33 @@
 //
 //===----------------------------------------------------------------------===//
 
+/// Type-erased middleware wrapper for iOS 15 compatibility
+public struct AnyMiddleware<Input, Output, Context>: Sendable {
+    private let _handle: @Sendable (Input, Context, @escaping @Sendable (Input, Context) async throws -> Output) async throws -> Output
+    
+    public init<M: MiddlewareProtocol>(_ middleware: M) where M.Input == Input, M.Output == Output, M.Context == Context {
+        self._handle = middleware.handle
+    }
+    
+    public func handle(_ input: Input, context: Context, next: @Sendable @escaping (Input, Context) async throws -> Output) async throws -> Output {
+        try await _handle(input, context, next)
+    }
+}
+
 /// Group of middleware that can be used to create a responder chain. Each middleware calls the next one
 public final class MiddlewareGroup<Context> {
-    var middlewares: [any MiddlewareProtocol<Request, Response, Context>]
+    var middlewares: [AnyMiddleware<Request, Response, Context>]
 
     /// Initialize `MiddlewareGroup`
-    init(middlewares: [any MiddlewareProtocol<Request, Response, Context>] = []) {
+    init(middlewares: [AnyMiddleware<Request, Response, Context>] = []) {
         self.middlewares = middlewares
     }
 
     /// Add middleware to group
     ///
     /// This middleware will only be applied to endpoints added after this call.
-    @discardableResult public func add(_ middleware: any MiddlewareProtocol<Request, Response, Context>) -> Self {
-        self.middlewares.append(middleware)
+    @discardableResult public func add<M: MiddlewareProtocol>(_ middleware: M) -> Self where M.Input == Request, M.Output == Response, M.Context == Context {
+        self.middlewares.append(AnyMiddleware(middleware))
         return self
     }
 

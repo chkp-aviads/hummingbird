@@ -46,7 +46,7 @@ final class RouterTests: XCTestCase {
 
         let router = Router()
         router.middlewares.add(TestEndpointMiddleware())
-        router.get("/test/{number}") { _, _ in return "xxx" }
+        router.get("/test/{number}") { _, _ in "xxx" }
         let app = Application(responder: router.buildResponder())
 
         try await app.test(.router) { client in
@@ -68,13 +68,13 @@ final class RouterTests: XCTestCase {
         let router = Router()
         router.middlewares.add(TestEndpointMiddleware())
         router.get("test") { _, context in
-            return context.endpointPath
+            context.endpointPath
         }
         router.get { _, context in
-            return context.endpointPath
+            context.endpointPath
         }
         router.post("/test2") { _, context in
-            return context.endpointPath
+            context.endpointPath
         }
         let app = Application(responder: router.buildResponder())
 
@@ -121,20 +121,20 @@ final class RouterTests: XCTestCase {
         let router = Router()
         router.middlewares.add(TestEndpointMiddleware())
         router.get("test/") { _, context in
-            return context.endpointPath
+            context.endpointPath
         }
         router.post("test2") { _, context in
-            return context.endpointPath
+            context.endpointPath
         }
         router
             .group("testGroup")
             .get { _, context in
-                return context.endpointPath
+                context.endpointPath
             }
         router
             .group("testGroup2")
             .get("/") { _, context in
-                return context.endpointPath
+                context.endpointPath
             }
         let app = Application(responder: router.buildResponder())
         try await app.test(.router) { client in
@@ -162,10 +162,10 @@ final class RouterTests: XCTestCase {
         router
             .group("/endpoint")
             .get { _, _ in
-                return "GET"
+                "GET"
             }
             .put { _, _ in
-                return "PUT"
+                "PUT"
             }
         let app = Application(responder: router.buildResponder())
         try await app.test(.router) { client in
@@ -187,10 +187,10 @@ final class RouterTests: XCTestCase {
             .group()
             .add(middleware: TestMiddleware())
             .get("/group") { _, _ in
-                return "hello"
+                "hello"
             }
         router.get("/not-group") { _, _ in
-            return "hello"
+            "hello"
         }
         let app = Application(responder: router.buildResponder())
         try await app.test(.router) { client in
@@ -210,7 +210,7 @@ final class RouterTests: XCTestCase {
             .group("/group")
             .add(middleware: TestMiddleware())
             .head { _, _ in
-                return "hello"
+                "hello"
             }
         let app = Application(responder: router.buildResponder())
         try await app.test(.router) { client in
@@ -228,7 +228,7 @@ final class RouterTests: XCTestCase {
             .add(middleware: TestMiddleware())
             .group("/group")
             .get { _, _ in
-                return "hello"
+                "hello"
             }
         let app = Application(responder: router.buildResponder())
         try await app.test(.router) { client in
@@ -243,7 +243,11 @@ final class RouterTests: XCTestCase {
         struct TestGroupMiddleware: RouterMiddleware {
             let output: String
 
-            public func handle(_ request: Request, context: TestRouterContext2, next: (Request, TestRouterContext2) async throws -> Response) async throws -> Response {
+            public func handle(
+                _ request: Request,
+                context: TestRouterContext2,
+                next: (Request, TestRouterContext2) async throws -> Response
+            ) async throws -> Response {
                 var context = context
                 context.string = self.output
                 return try await next(request, context)
@@ -255,12 +259,12 @@ final class RouterTests: XCTestCase {
             .group("/test")
             .add(middleware: TestGroupMiddleware(output: "route1"))
             .get { _, context in
-                return context.string
+                context.string
             }
             .group("/group")
             .add(middleware: TestGroupMiddleware(output: "route2"))
             .get { _, context in
-                return context.string
+                context.string
             }
         let app = Application(responder: router.buildResponder())
         try await app.test(.router) { client in
@@ -302,7 +306,7 @@ final class RouterTests: XCTestCase {
             .group("/group", context: TestRouterContext2.self)
             .add(middleware: TestTransformMiddleware())
             .get { _, context in
-                return EditedResponse(headers: [.test: context.string], response: "hello")
+                EditedResponse(headers: [.test: context.string], response: "hello")
             }
         let app = Application(responder: router.buildResponder())
         try await app.test(.router) { client in
@@ -312,11 +316,63 @@ final class RouterTests: XCTestCase {
         }
     }
 
+    /// Test middleware in parent group is applied to routes in child group
+    func testThrowingTransformingGroupMiddleware() async throws {
+        struct TestRouterContext: RequestContext {
+            init(source: Source) {
+                self.coreContext = .init(source: source)
+                self.string = nil
+            }
+
+            /// parameters
+            var coreContext: CoreRequestContextStorage
+            /// additional data
+            var string: String?
+        }
+        struct TestRouterContext2: ChildRequestContext {
+            typealias ParentContext = TestRouterContext
+            init(context: ParentContext) throws {
+                self.coreContext = .init(source: context)
+                guard let string = context.string else { throw HTTPError(.badRequest) }
+                self.string = string
+            }
+
+            /// parameters
+            var coreContext: CoreRequestContextStorage
+            /// additional data
+            var string: String
+        }
+        struct TestTransformMiddleware: RouterMiddleware {
+            typealias Context = TestRouterContext
+            func handle(_ request: Request, context: Context, next: (Request, Context) async throws -> Response) async throws -> Response {
+                var context = context
+                context.string = request.headers[.test]
+                return try await next(request, context)
+            }
+        }
+        let router = Router(context: TestRouterContext.self)
+        router
+            .add(middleware: TestTransformMiddleware())
+            .group("/group", context: TestRouterContext2.self)
+            .get { _, context in
+                EditedResponse(headers: [.test: context.string], response: "hello")
+            }
+        let app = Application(responder: router.buildResponder())
+        try await app.test(.router) { client in
+            try await client.execute(uri: "/group", method: .get, headers: [.test: "test"]) { response in
+                XCTAssertEqual(response.headers[.test], "test")
+            }
+            try await client.execute(uri: "/group", method: .get) { response in
+                XCTAssertEqual(response.status, .badRequest)
+            }
+        }
+    }
+
     func testParameters() async throws {
         let router = Router()
         router
             .delete("/user/:id") { _, context -> String? in
-                return context.parameters.get("id", as: String.self)
+                context.parameters.get("id", as: String.self)
             }
         let app = Application(responder: router.buildResponder())
         try await app.test(.router) { client in
@@ -352,7 +408,7 @@ final class RouterTests: XCTestCase {
         let router = Router()
         router
             .delete("/user/:id") { _, context -> String in
-                return try context.parameters.require("id", as: TestEnum.self).rawValue
+                try context.parameters.require("id", as: TestEnum.self).rawValue
             }
         let app = Application(responder: router.buildResponder())
         try await app.test(.router) { client in
@@ -401,7 +457,7 @@ final class RouterTests: XCTestCase {
         let router = Router()
         router
             .get("/files/file.*/*.jpg") { _, _ -> HTTPResponse.Status in
-                return .ok
+                .ok
             }
         let app = Application(responder: router.buildResponder())
         try await app.test(.router) { client in
@@ -459,12 +515,12 @@ final class RouterTests: XCTestCase {
     func testRequestId() async throws {
         let router = Router()
         router.get("id") { _, context in
-            return context.id.description
+            context.id.description
         }
         let app = Application(responder: router.buildResponder())
         try await app.test(.router) { client in
-            let id = try await client.execute(uri: "/id", method: .get) { response -> String in
-                return String(buffer: response.body)
+            let id = try await client.execute(uri: "/id", method: .get) { response in
+                String(buffer: response.body)
             }
             try await client.execute(uri: "/id", method: .get) { response in
                 let id2 = String(buffer: response.body)
@@ -477,7 +533,7 @@ final class RouterTests: XCTestCase {
     func testRedirect() async throws {
         let router = Router()
         router.get("redirect") { _, _ in
-            return Response.redirect(to: "/other")
+            Response.redirect(to: "/other")
         }
         let app = Application(responder: router.buildResponder())
         try await app.test(.router) { client in
@@ -493,7 +549,7 @@ final class RouterTests: XCTestCase {
         let router = Router()
         let routes = RouteCollection()
         routes.get("that") { _, _ in
-            return HTTPResponse.Status.ok
+            HTTPResponse.Status.ok
         }
         router.addRoutes(routes, atPath: "/this")
         let app = Application(responder: router.buildResponder())
@@ -509,7 +565,7 @@ final class RouterTests: XCTestCase {
         let router = Router()
         let routes = RouteCollection()
             .get("that") { _, _ in
-                return HTTPResponse.Status.ok
+                HTTPResponse.Status.ok
             }
         router.group("this").addRoutes(routes)
         let app = Application(responder: router.buildResponder())
@@ -526,7 +582,7 @@ final class RouterTests: XCTestCase {
         let routes = RouteCollection()
             .add(middleware: TestMiddleware("Hello"))
             .get("that") { _, _ in
-                return HTTPResponse.Status.ok
+                HTTPResponse.Status.ok
             }
         router.addRoutes(routes, atPath: "/this")
         let app = Application(responder: router.buildResponder())
@@ -543,11 +599,11 @@ final class RouterTests: XCTestCase {
         let router = Router()
         let routes = RouteCollection()
             .get("this") { _, _ in
-                return HTTPResponse.Status.ok
+                HTTPResponse.Status.ok
             }
             .add(middleware: TestMiddleware("Hello"))
             .get("that") { _, _ in
-                return HTTPResponse.Status.ok
+                HTTPResponse.Status.ok
             }
         router.addRoutes(routes, atPath: "/test")
         let app = Application(responder: router.buildResponder())
@@ -570,7 +626,7 @@ final class RouterTests: XCTestCase {
         routes.group("2")
             .add(middleware: TestMiddleware("Hello"))
             .get("3") { _, _ in
-                return HTTPResponse.Status.ok
+                HTTPResponse.Status.ok
             }
         router.addRoutes(routes, atPath: "1")
         let app = Application(responder: router.buildResponder())
@@ -586,13 +642,13 @@ final class RouterTests: XCTestCase {
     func testCaseInsensitive() async throws {
         let router = Router(options: .caseInsensitive)
         router.get("Uppercased") { _, _ in
-            return HTTPResponse.Status.ok
+            HTTPResponse.Status.ok
         }
         router.get("lowercased") { _, _ in
-            return HTTPResponse.Status.ok
+            HTTPResponse.Status.ok
         }
         router.group("group").get("Uppercased") { _, _ in
-            return HTTPResponse.Status.ok
+            HTTPResponse.Status.ok
         }
         let app = Application(responder: router.buildResponder())
         try await app.test(.router) { client in
@@ -611,10 +667,10 @@ final class RouterTests: XCTestCase {
     func testRecursiveWildcard() async throws {
         let router = Router()
         router.get("/api/v1/**/john") { _, context in
-            return "John \(context.parameters.getCatchAll().joined(separator: "/"))"
+            "John \(context.parameters.getCatchAll().joined(separator: "/"))"
         }
         router.get("/api/v1/**/jane/subpath") { _, context in
-            return "Jane \(context.parameters.getCatchAll().joined(separator: "/"))"
+            "Jane \(context.parameters.getCatchAll().joined(separator: "/"))"
         }
         let app = Application(responder: router.buildResponder())
         try await app.test(.router) { client in
@@ -631,16 +687,16 @@ final class RouterTests: XCTestCase {
     func testAutoGenerateHeadEndpoints() async throws {
         let router = Router(options: .autoGenerateHeadEndpoints)
         router.get("nohead") { _, _ in
-            return "TestString"
+            "TestString"
         }
         router.head("withhead") { _, _ in
-            return Response(status: .ok, headers: [.contentLength: "0", .contentLanguage: "en"], body: .init())
+            Response(status: .ok, headers: [.contentLength: "0", .contentLanguage: "en"], body: .init())
         }
         router.get("withhead") { _, _ in
-            return Response(status: .ok, headers: [.contentLength: "999"], body: .init())
+            Response(status: .ok, headers: [.contentLength: "999"], body: .init())
         }
         router.post("post") { _, _ in
-            return Response(status: .ok, headers: [.contentLength: "999"], body: .init())
+            Response(status: .ok, headers: [.contentLength: "999"], body: .init())
         }
         let app = Application(responder: router.buildResponder())
         try await app.test(.router) { client in
@@ -662,7 +718,7 @@ final class RouterTests: XCTestCase {
         let route = "/test"
         let router = Router()
         router.get("\(route)") { _, _ in
-            return "TestString"
+            "TestString"
         }
         let app = Application(responder: router.buildResponder())
         try await app.test(.router) { client in
@@ -671,6 +727,73 @@ final class RouterTests: XCTestCase {
                 XCTAssertEqual(response.headers[.contentLength], "10")
             }
         }
+    }
+
+    func testEndpointDescriptions() {
+        let router = Router()
+        router.get("test") { _, _ in "" }
+        router.get("test/this") { _, _ in "" }
+        router.put("test") { _, _ in "" }
+        router.post("{test}/{what}") { _, _ in "" }
+        router.get("wildcard/*/*") { _, _ in "" }
+        router.get("recursive_wildcard/**") { _, _ in "" }
+        router.patch("/test/longer/path/name") { _, _ in "" }
+        let routes = router.routes
+        XCTAssertEqual(routes.count, 7)
+        XCTAssertEqual(routes[0].path.description, "/test")
+        XCTAssertEqual(routes[0].method, .get)
+        XCTAssertEqual(routes[1].path.description, "/test")
+        XCTAssertEqual(routes[1].method, .put)
+        XCTAssertEqual(routes[2].path.description, "/test/this")
+        XCTAssertEqual(routes[2].method, .get)
+        XCTAssertEqual(routes[3].path.description, "/test/longer/path/name")
+        XCTAssertEqual(routes[3].method, .patch)
+        XCTAssertEqual(routes[4].path.description, "/{test}/{what}")
+        XCTAssertEqual(routes[4].method, .post)
+        XCTAssertEqual(routes[5].path.description, "/wildcard/*/*")
+        XCTAssertEqual(routes[5].method, .get)
+        XCTAssertEqual(routes[6].path.description, "/recursive_wildcard/**")
+        XCTAssertEqual(routes[6].method, .get)
+    }
+
+    func testValidateOrdering() throws {
+        let router = Router()
+        router.post("{test}/{what}") { _, _ in "" }
+        router.get("test/this") { _, _ in "" }
+        try router.validate()
+    }
+
+    func testValidateParametersVsWildcards() throws {
+        let router = Router()
+        router.get("test/*") { _, _ in "" }
+        router.get("test/{what}") { _, _ in "" }
+        XCTAssertThrowsError(try router.validate()) { error in
+            guard let error = error as? RouterValidationError else {
+                XCTFail()
+                return
+            }
+            XCTAssertEqual(error.description, "Route /test/{what} overrides /test/*")
+        }
+    }
+
+    func testValidateParametersVsRecursiveWildcard() throws {
+        let router = Router()
+        router.get("test/**") { _, _ in "" }
+        router.get("test/{what}") { _, _ in "" }
+        XCTAssertThrowsError(try router.validate()) { error in
+            guard let error = error as? RouterValidationError else {
+                XCTFail()
+                return
+            }
+            XCTAssertEqual(error.description, "Route /test/{what} overrides /test/**")
+        }
+    }
+
+    func testValidateDifferentParameterNames() throws {
+        let router = Router()
+        router.get("test/{this}") { _, _ in "" }
+        router.get("test/{what}") { _, _ in "" }
+        XCTAssertThrowsError(try router.validate())
     }
 }
 

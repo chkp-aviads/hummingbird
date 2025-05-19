@@ -50,8 +50,8 @@ extension RouterMethods {
 
     /// Return a group inside the current group
     /// - Parameter path: path prefix to add to routes inside this group
-    @discardableResult public func group(_ path: RouterPath = "") -> RouterGroup<Context> {
-        return RouterGroup(
+    public func group(_ path: RouterPath = "") -> RouterGroup<Context> {
+        RouterGroup(
             path: path,
             parent: self
         )
@@ -73,13 +73,39 @@ extension RouterMethods {
     /// - Parameters
     ///   - path: path prefix to add to routes inside this group
     ///   - convertContext: Function converting context
-    @discardableResult public func group<TargetContext>(
-        _ path: RouterPath,
+    public func group<TargetContext>(
+        _ path: RouterPath = "",
         context: TargetContext.Type
     ) -> RouterGroup<TargetContext> where TargetContext.Source == Context {
-        return RouterGroup(
+        RouterGroup(
             path: path,
             parent: TransformingRouterGroup(parent: self)
+        )
+    }
+
+    /// Return a group inside the current group that transforms the ``RequestContext``
+    ///
+    /// For the transform to work the `Source` of the transformed `RequestContext` needs
+    /// to be the original `RequestContext` eg
+    /// ```
+    /// struct TransformedRequestContext: ChildRequestContext {
+    ///     typealias ParentContext = BasicRequestContext
+    ///     var coreContext: CoreRequestContextStorage
+    ///     init(context: ParentContext) throws {
+    ///         self.coreContext = .init(source: source)
+    ///     }
+    /// }
+    /// ```
+    /// - Parameters
+    ///   - path: path prefix to add to routes inside this group
+    ///   - convertContext: Function converting context
+    public func group<TargetContext: ChildRequestContext>(
+        _ path: RouterPath = "",
+        context: TargetContext.Type
+    ) -> RouterGroup<TargetContext> where TargetContext.ParentContext == Context {
+        RouterGroup(
+            path: path,
+            parent: ThrowingTransformingRouterGroup(parent: self)
         )
     }
 
@@ -101,7 +127,7 @@ extension RouterMethods {
     @discardableResult public func addMiddleware(
         @MiddlewareFixedTypeBuilder<Request, Response, Context> buildMiddlewareStack: () -> some MiddlewareProtocol<Request, Response, Context>
     ) -> Self {
-        return self.add(middleware: buildMiddlewareStack())
+        self.add(middleware: buildMiddlewareStack())
     }
 
     /// GET path for async closure returning type conforming to ResponseGenerator
@@ -109,7 +135,7 @@ extension RouterMethods {
         _ path: RouterPath = "",
         use handler: @Sendable @escaping (Request, Context) async throws -> some ResponseGenerator
     ) -> Self {
-        return self.on(path, method: .get, use: handler)
+        self.on(path, method: .get, use: handler)
     }
 
     /// PUT path for async closure returning type conforming to ResponseGenerator
@@ -117,7 +143,7 @@ extension RouterMethods {
         _ path: RouterPath = "",
         use handler: @Sendable @escaping (Request, Context) async throws -> some ResponseGenerator
     ) -> Self {
-        return self.on(path, method: .put, use: handler)
+        self.on(path, method: .put, use: handler)
     }
 
     /// DELETE path for async closure returning type conforming to ResponseGenerator
@@ -125,7 +151,7 @@ extension RouterMethods {
         _ path: RouterPath = "",
         use handler: @Sendable @escaping (Request, Context) async throws -> some ResponseGenerator
     ) -> Self {
-        return self.on(path, method: .delete, use: handler)
+        self.on(path, method: .delete, use: handler)
     }
 
     /// HEAD path for async closure returning type conforming to ResponseGenerator
@@ -133,7 +159,7 @@ extension RouterMethods {
         _ path: RouterPath = "",
         use handler: @Sendable @escaping (Request, Context) async throws -> some ResponseGenerator
     ) -> Self {
-        return self.on(path, method: .head, use: handler)
+        self.on(path, method: .head, use: handler)
     }
 
     /// POST path for async closure returning type conforming to ResponseGenerator
@@ -141,7 +167,7 @@ extension RouterMethods {
         _ path: RouterPath = "",
         use handler: @Sendable @escaping (Request, Context) async throws -> some ResponseGenerator
     ) -> Self {
-        return self.on(path, method: .post, use: handler)
+        self.on(path, method: .post, use: handler)
     }
 
     /// PATCH path for async closure returning type conforming to ResponseGenerator
@@ -149,13 +175,13 @@ extension RouterMethods {
         _ path: RouterPath = "",
         use handler: @Sendable @escaping (Request, Context) async throws -> some ResponseGenerator
     ) -> Self {
-        return self.on(path, method: .patch, use: handler)
+        self.on(path, method: .patch, use: handler)
     }
 
     internal func constructResponder(
         use closure: @Sendable @escaping (Request, Context) async throws -> some ResponseGenerator
     ) -> CallbackResponder<Context> {
-        return CallbackResponder { request, context in
+        CallbackResponder { request, context in
             let output = try await closure(request, context)
             return try output.response(from: request, context: context)
         }

@@ -16,11 +16,12 @@ import Logging
 import NIOCore
 import NIOExtras
 import NIOPosix
+import ServiceLifecycle
+
 #if canImport(Network)
 import Network
 import NIOTransportServices
 #endif
-import ServiceLifecycle
 
 /// HTTP server class
 public actor Server<ChildChannel: ServerChildChannel>: Service {
@@ -117,7 +118,8 @@ public actor Server<ChildChannel: ServerChildChannel>: Service {
 
                         let logger = self.logger
                         // We can now start to handle our work.
-                        await withDiscardingTaskGroup { group in
+//                        await withDiscardingTaskGroup { group in  // TODO:: iOS 17
+                        await withTaskGroup(of: Void.self) { group in
                             do {
                                 try await asyncChannel.executeThenClose { inbound in
                                     for try await childChannel in inbound {
@@ -126,6 +128,7 @@ public actor Server<ChildChannel: ServerChildChannel>: Service {
                                         }
                                     }
                                 }
+                                await group.waitForAll() // Ensure all tasks    // TODO:: remove iOS 17
                             } catch {
                                 logger.error("Waiting on child channel: \(error)")
                             }
@@ -193,17 +196,24 @@ public actor Server<ChildChannel: ServerChildChannel>: Service {
     /// Start server
     /// - Parameter responder: Object that provides responses to requests sent to the server
     /// - Returns: EventLoopFuture that is fulfilled when server has started
-    nonisolated func makeServer(childChannelSetup: ChildChannel, configuration: ServerConfiguration) async throws -> (AsyncServerChannel, ServerQuiescingHelper) {
+    nonisolated func makeServer(
+        childChannelSetup: ChildChannel,
+        configuration: ServerConfiguration
+    ) async throws -> (AsyncServerChannel, ServerQuiescingHelper) {
         var bootstrap: ServerBootstrapProtocol
         #if canImport(Network)
         if let tsBootstrap = self.createTSBootstrap(configuration: configuration) {
             bootstrap = tsBootstrap
         } else {
             #if os(iOS) || os(tvOS)
-            self.logger.warning("Running BSD sockets on iOS or tvOS is not recommended. Please use NIOTSEventLoopGroup, to run with the Network framework")
+            self.logger.warning(
+                "Running BSD sockets on iOS or tvOS is not recommended. Please use NIOTSEventLoopGroup, to run with the Network framework"
+            )
             #endif
             if configuration.tlsOptions.options != nil {
-                self.logger.warning("tlsOptions set in Configuration will not be applied to a BSD sockets server. Please use NIOTSEventLoopGroup, to run with the Network framework")
+                self.logger.warning(
+                    "tlsOptions set in Configuration will not be applied to a BSD sockets server. Please use NIOTSEventLoopGroup, to run with the Network framework"
+                )
             }
             bootstrap = self.createSocketsBootstrap(configuration: configuration)
         }
@@ -282,7 +292,7 @@ public actor Server<ChildChannel: ServerChildChannel>: Service {
     private nonisolated func createSocketsBootstrap(
         configuration: ServerConfiguration
     ) -> ServerBootstrap {
-        return ServerBootstrap(group: self.eventLoopGroup)
+        ServerBootstrap(group: self.eventLoopGroup)
             // Specify backlog and enable SO_REUSEADDR for the server itself
             .serverChannelOption(ChannelOptions.backlog, value: numericCast(configuration.backlog))
             .serverChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: configuration.reuseAddress ? 1 : 0)
@@ -295,11 +305,12 @@ public actor Server<ChildChannel: ServerChildChannel>: Service {
     private nonisolated func createTSBootstrap(
         configuration: ServerConfiguration
     ) -> NIOTSListenerBootstrap? {
-        guard let bootstrap = NIOTSListenerBootstrap(validatingGroup: self.eventLoopGroup)?
-            .serverChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: configuration.reuseAddress ? 1 : 0)
-            // Set the handlers that are applied to the accepted Channels
-            .childChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: configuration.reuseAddress ? 1 : 0)
-            .childChannelOption(ChannelOptions.allowRemoteHalfClosure, value: true)
+        guard
+            let bootstrap = NIOTSListenerBootstrap(validatingGroup: self.eventLoopGroup)?
+                .serverChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: configuration.reuseAddress ? 1 : 0)
+                // Set the handlers that are applied to the accepted Channels
+                .childChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: configuration.reuseAddress ? 1 : 0)
+                .childChannelOption(ChannelOptions.allowRemoteHalfClosure, value: true)
         else {
             return nil
         }

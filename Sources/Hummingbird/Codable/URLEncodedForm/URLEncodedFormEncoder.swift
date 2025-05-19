@@ -2,7 +2,7 @@
 //
 // This source file is part of the Hummingbird server framework project
 //
-// Copyright (c) 2021-2021 the Hummingbird authors
+// Copyright (c) 2021-2024 the Hummingbird authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -55,7 +55,7 @@ public struct URLEncodedFormEncoder: Sendable {
 
     /// The options set on the top-level encoder.
     fileprivate var options: _Options {
-        return _Options(
+        _Options(
             dateEncodingStrategy: self.dateEncodingStrategy,
             userInfo: self.userInfo
         )
@@ -104,7 +104,7 @@ private class _URLEncodedFormEncoder: Encoder {
 
     /// Contextual user-provided information for use during encoding.
     public var userInfo: [CodingUserInfoKey: Any] {
-        return self.options.userInfo
+        self.options.userInfo
     }
 
     /// Initialization
@@ -127,7 +127,7 @@ private class _URLEncodedFormEncoder: Encoder {
     }
 
     struct KEC<Key: CodingKey>: KeyedEncodingContainerProtocol {
-        var codingPath: [CodingKey] { return self.encoder.codingPath }
+        var codingPath: [CodingKey] { self.encoder.codingPath }
         let container: URLEncodedFormNode.Map
         let encoder: _URLEncodedFormEncoder
 
@@ -170,7 +170,10 @@ private class _URLEncodedFormEncoder: Encoder {
             self.container.addChild(key: key.stringValue, value: childContainer)
         }
 
-        mutating func nestedContainer<NestedKey>(keyedBy keyType: NestedKey.Type, forKey key: Key) -> KeyedEncodingContainer<NestedKey> where NestedKey: CodingKey {
+        mutating func nestedContainer<NestedKey>(
+            keyedBy keyType: NestedKey.Type,
+            forKey key: Key
+        ) -> KeyedEncodingContainer<NestedKey> where NestedKey: CodingKey {
             self.encoder.codingPath.append(key)
             defer { self.encoder.codingPath.removeLast() }
 
@@ -192,11 +195,11 @@ private class _URLEncodedFormEncoder: Encoder {
         }
 
         mutating func superEncoder() -> Encoder {
-            return self.encoder
+            self.encoder
         }
 
         mutating func superEncoder(forKey key: Key) -> Encoder {
-            return self.encoder
+            self.encoder
         }
     }
 
@@ -206,7 +209,7 @@ private class _URLEncodedFormEncoder: Encoder {
     }
 
     struct UKEC: UnkeyedEncodingContainer {
-        var codingPath: [CodingKey] { return self.encoder.codingPath }
+        var codingPath: [CodingKey] { self.encoder.codingPath }
         let container: URLEncodedFormNode.Array
         let encoder: _URLEncodedFormEncoder
         var count: Int
@@ -275,7 +278,7 @@ private class _URLEncodedFormEncoder: Encoder {
         }
 
         mutating func superEncoder() -> Encoder {
-            return self.encoder
+            self.encoder
         }
     }
 }
@@ -313,7 +316,7 @@ extension _URLEncodedFormEncoder: SingleValueEncodingContainer {
     }
 
     func singleValueContainer() -> SingleValueEncodingContainer {
-        return self
+        self
     }
 }
 
@@ -327,11 +330,11 @@ extension _URLEncodedFormEncoder {
         case .secondsSince1970:
             try self.encode(Double(date.timeIntervalSince1970).description)
         case .iso8601:
-            if #available(macOS 10.12, iOS 10.0, watchOS 3.0, tvOS 10.0, *) {
-                try encode(URLEncodedForm.iso8601Formatter.string(from: date))
-            } else {
-                preconditionFailure("ISO8601DateFormatter is unavailable on this platform")
-            }
+            #if compiler(>=6.0)
+            try self.encode(date.formatted(.iso8601))
+            #else
+            try self.encode(URLEncodedForm.iso8601Formatter.string(from: date))
+            #endif
         case .formatted(let formatter):
             try self.encode(formatter.string(from: date))
         case .custom(let closure):
@@ -345,12 +348,19 @@ extension _URLEncodedFormEncoder {
         return self.storage.popContainer()
     }
 
+    func box(_ url: URL) throws -> URLEncodedFormNode {
+        try self.encode(url.absoluteString)
+        return self.storage.popContainer()
+    }
+
     func box(_ value: Encodable) throws -> URLEncodedFormNode {
         let type = Swift.type(of: value)
         if type == Data.self {
             return try self.box(value as! Data)
         } else if type == Date.self {
             return try self.box(value as! Date)
+        } else if type == URL.self {
+            return try self.box(value as! URL)
         } else {
             try value.encode(to: self)
             return self.storage.popContainer()
@@ -388,6 +398,6 @@ private struct URLEncodedFormEncoderStorage {
 
     /// pop a container from the storage
     @discardableResult mutating func popContainer() -> URLEncodedFormNode {
-        return self.containers.removeLast()
+        self.containers.removeLast()
     }
 }

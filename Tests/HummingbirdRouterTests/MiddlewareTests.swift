@@ -38,7 +38,7 @@ final class MiddlewareTests: XCTestCase {
         let router = RouterBuilder(context: BasicRouterRequestContext.self) {
             TestMiddleware()
             Get("/hello") { _, _ -> String in
-                return "Hello"
+                "Hello"
             }
         }
         let app = Application(responder: router)
@@ -62,7 +62,7 @@ final class MiddlewareTests: XCTestCase {
             TestMiddleware(string: "first")
             TestMiddleware(string: "second")
             Get("/hello") { _, _ -> String in
-                return "Hello"
+                "Hello"
             }
         }
         let app = Application(responder: router)
@@ -87,7 +87,7 @@ final class MiddlewareTests: XCTestCase {
         let router = RouterBuilder(context: BasicRouterRequestContext.self) {
             TestMiddleware()
             Get("/hello") { _, _ -> String in
-                return "Hello"
+                "Hello"
             }
         }
         let app = Application(responder: router)
@@ -123,7 +123,7 @@ final class MiddlewareTests: XCTestCase {
         try await app.test(.router) { client in
             try await client.execute(uri: "/hello", method: .get) { response in
                 XCTAssertEqual(response.status, .notFound)
-                let error = try JSONDecoder().decode(ErrorMessage.self, from: response.body)
+                let error = try JSONDecoder().decodeByteBuffer(ErrorMessage.self, from: response.body)
                 XCTAssertEqual(error.error.message, "Edited error")
             }
         }
@@ -159,10 +159,13 @@ final class MiddlewareTests: XCTestCase {
             RouteGroup("") {
                 TransformMiddleware()
                 Get("test") { request, _ in
-                    Response(status: .ok, body: .init { writer in
-                        try await writer.write(request.body)
-                        try await writer.finish([.middleware: "test"])
-                    })
+                    Response(
+                        status: .ok,
+                        body: .init { writer in
+                            try await writer.write(request.body)
+                            try await writer.finish([.middleware: "test"])
+                        }
+                    )
                 }
             }
         }

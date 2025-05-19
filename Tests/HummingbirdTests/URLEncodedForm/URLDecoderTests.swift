@@ -12,16 +12,23 @@
 //
 //===----------------------------------------------------------------------===//
 
-@testable import Hummingbird
 import XCTest
 
+@testable import Hummingbird
+
 final class URLDecodedFormDecoderTests: XCTestCase {
-    func testForm<Input: Decodable & Equatable>(_ value: Input, query: String, decoder: URLEncodedFormDecoder = .init()) {
+    func testForm<Input: Decodable & Equatable>(
+        _ value: Input,
+        query: String,
+        decoder: URLEncodedFormDecoder = .init(),
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
         do {
             let value2 = try decoder.decode(Input.self, from: query)
-            XCTAssertEqual(value, value2)
+            XCTAssertEqual(value, value2, file: file, line: line)
         } catch {
-            XCTFail("\(error)")
+            XCTFail("\(error)", file: file, line: line)
         }
     }
 
@@ -75,8 +82,25 @@ final class URLDecodedFormDecoderTests: XCTestCase {
             let f: [Float]
             let d: [Double]
         }
-        let test = Test(b: [true, false], i: [34], i8: [23], i16: [9], i32: [-6872], i64: [23], u: [0], u8: [255], u16: [7673], u32: [88222], u64: [234], f: [-1.1], d: [8])
-        self.testForm(test, query: "b[]=true&b[]=false&i[]=34&i8[]=23&i16[]=9&i32[]=-6872&i64[]=23&u[]=0&u8[]=255&u16[]=7673&u32[]=88222&u64[]=234&f[]=-1.1&d[]=8")
+        let test = Test(
+            b: [true, false],
+            i: [34],
+            i8: [23],
+            i16: [9],
+            i32: [-6872],
+            i64: [23],
+            u: [0],
+            u8: [255],
+            u16: [7673],
+            u32: [88222],
+            u64: [234],
+            f: [-1.1],
+            d: [8]
+        )
+        self.testForm(
+            test,
+            query: "b[]=true&b[]=false&i[]=34&i8[]=23&i16[]=9&i32[]=-6872&i64[]=23&u[]=0&u8[]=255&u16[]=7673&u32[]=88222&u64[]=234&f[]=-1.1&d[]=8"
+        )
     }
 
     func testArraysWithIndices() {
@@ -88,19 +112,19 @@ final class URLDecodedFormDecoderTests: XCTestCase {
 
         let test2 = Test(arr: [12, 45, 54, 55, -5, 5, 9, 33, 0, 9, 4, 33])
         let query = """
-        arr[0]=12\
-        &arr[1]=45\
-        &arr[2]=54\
-        &arr[3]=55\
-        &arr[4]=-5\
-        &arr[5]=5\
-        &arr[6]=9\
-        &arr[7]=33\
-        &arr[8]=0\
-        &arr[9]=9\
-        &arr[10]=4\
-        &arr[11]=33
-        """
+            arr[0]=12\
+            &arr[1]=45\
+            &arr[2]=54\
+            &arr[3]=55\
+            &arr[4]=-5\
+            &arr[5]=5\
+            &arr[6]=9\
+            &arr[7]=33\
+            &arr[8]=0\
+            &arr[9]=9\
+            &arr[10]=4\
+            &arr[11]=33
+            """
         self.testForm(test2, query: query)
     }
 
@@ -112,7 +136,12 @@ final class URLDecodedFormDecoderTests: XCTestCase {
         // incorrect indices
         let query = "arr[0]=2&arr[2]=4"
         XCTAssertThrowsError(try decoder.decode(Test.self, from: query)) { error in
-            XCTAssertEqual(error as? URLEncodedFormNode.Error, URLEncodedFormNode.Error.invalidArrayIndex(2))
+            guard let error = try? XCTUnwrap(error as? URLEncodedFormError) else {
+                XCTFail()
+                return
+            }
+            XCTAssertEqual(error.code, .invalidArrayIndex)
+            XCTAssertEqual(error.value, "arr[2]")
         }
     }
 
@@ -245,5 +274,68 @@ final class URLDecodedFormDecoderTests: XCTestCase {
         }
         let test = Test(name: "John", age: nil)
         self.testForm(test, query: "name=John")
+    }
+
+    func testURLDecode() throws {
+        struct URLForm: Decodable, Equatable {
+            let site: URL
+        }
+
+        let test = URLForm(site: URL(string: "https://hummingbird.codes")!)
+
+        self.testForm(test, query: "site=https://hummingbird.codes")
+    }
+
+    func testDecodingEmptyArrayAndMap() throws {
+        struct ArrayDecoding: Decodable, Equatable {
+            let array: [Int]
+            let map: [String: Int]
+            let a: Int
+        }
+        self.testForm(ArrayDecoding(array: [], map: [:], a: 3), query: "a=3")
+    }
+
+    func testParsingErrors() throws {
+        struct Input1: Decodable {}
+        XCTAssertThrowsError(try URLEncodedFormDecoder().decode(Input1.self, from: "someField=1&someField=2")) { error in
+            guard let error = try? XCTUnwrap(error as? URLEncodedFormError) else {
+                XCTFail()
+                return
+            }
+            XCTAssertEqual(error.code, .duplicateKeys)
+            XCTAssertEqual(error.value, "someField")
+        }
+        XCTAssertThrowsError(try URLEncodedFormDecoder().decode(Input1.self, from: "someField[]=1&someField=2")) { error in
+            guard let error = try? XCTUnwrap(error as? URLEncodedFormError) else {
+                XCTFail()
+                return
+            }
+            XCTAssertEqual(error.code, .duplicateKeys)
+            XCTAssertEqual(error.value, "someField")
+        }
+        XCTAssertThrowsError(try URLEncodedFormDecoder().decode(Input1.self, from: "someField=1&someField[]=2")) { error in
+            guard let error = try? XCTUnwrap(error as? URLEncodedFormError) else {
+                XCTFail()
+                return
+            }
+            XCTAssertEqual(error.code, .addingToInvalidType)
+            XCTAssertEqual(error.value, "someField")
+        }
+        XCTAssertThrowsError(try URLEncodedFormDecoder().decode(Input1.self, from: "someField=1&someField[test]=2")) { error in
+            guard let error = try? XCTUnwrap(error as? URLEncodedFormError) else {
+                XCTFail()
+                return
+            }
+            XCTAssertEqual(error.code, .addingToInvalidType)
+            XCTAssertEqual(error.value, "someField")
+        }
+        XCTAssertThrowsError(try URLEncodedFormDecoder().decode(Input1.self, from: "someField[=2")) { error in
+            guard let error = try? XCTUnwrap(error as? URLEncodedFormError) else {
+                XCTFail()
+                return
+            }
+            XCTAssertEqual(error.code, .corruptKeyValue)
+            XCTAssertEqual(error.value, "someField[")
+        }
     }
 }

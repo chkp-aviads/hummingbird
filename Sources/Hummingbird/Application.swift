@@ -15,11 +15,15 @@
 import HummingbirdCore
 import Logging
 import NIOCore
+import NIOHTTP1
 import NIOHTTPTypes
 import NIOPosix
-import NIOTransportServices
 import ServiceLifecycle
 import UnixSignals
+
+#if os(iOS)
+import NIOTransportServices
+#endif
 
 /// Where should the application get its EventLoopGroup from
 public enum EventLoopGroupProvider {
@@ -93,7 +97,7 @@ extension ApplicationProtocol {
 extension ApplicationProtocol {
     /// Construct application and run it
     public func run() async throws {
-        let dateCache = DateCache()
+        let dateCache = DateCache(eventLoop: self.eventLoopGroup.next())
         let responder = try await self.responder
 
         // create server `Service``
@@ -113,6 +117,8 @@ extension ApplicationProtocol {
             var response: Response
             do {
                 response = try await responder.respond(to: request, context: context)
+            } catch let error as HTTPParserError {
+                throw error
             } catch {
                 logger.debug("Unrecognised Error", metadata: ["error.type": "\(error)"])
                 response = Response(
@@ -125,9 +131,15 @@ extension ApplicationProtocol {
             if let serverName = self.configuration.serverName {
                 response.headers[.server] = serverName
             }
-            // Write response
-            let bodyWriter = try await responseWriter.writeHead(response.head)
-            try await response.body.write(bodyWriter)
+            do {
+                // Write response
+                let bodyWriter = try await responseWriter.writeHead(response.head)
+                try await response.body.write(bodyWriter)
+            } catch is HTTPParserError {
+                // cannot throw the parser error, as that will cause another response
+                // to be written
+                throw HTTPChannelError.parseErrorWhileWritingResponse
+            }
         } onServerRunning: {
             await self.onServerRunning($0)
         }
@@ -169,7 +181,8 @@ extension ApplicationProtocol {
 /// try await app.runService()
 /// ```
 /// Editing the application setup after calling `runService` will produce undefined behaviour.
-public struct Application<Responder: HTTPResponder>: ApplicationProtocol where Responder.Context: InitializableFromSource<ApplicationRequestContextSource> {
+public struct Application<Responder: HTTPResponder>: ApplicationProtocol
+where Responder.Context: InitializableFromSource<ApplicationRequestContextSource> {
     // MARK: Member variables
 
     /// event loop group used by application
@@ -280,7 +293,7 @@ public struct Application<Responder: HTTPResponder>: ApplicationProtocol where R
     }
 
     public func buildResponder() async throws -> Responder {
-        return self.responder
+        self.responder
     }
 
     public func onServerRunning(_ channel: Channel) async {

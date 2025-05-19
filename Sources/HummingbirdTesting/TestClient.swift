@@ -35,7 +35,7 @@ public struct TestClient: Sendable {
     public struct Configuration: Sendable {
         public init(
             tlsConfiguration: TLSConfiguration? = nil,
-            timeout: Duration = .seconds(15),
+            timeout: TimeAmount = .seconds(15),
             serverName: String? = nil
         ) {
             self.tlsConfiguration = tlsConfiguration
@@ -46,7 +46,7 @@ public struct TestClient: Sendable {
         /// TLS confguration
         public let tlsConfiguration: TLSConfiguration?
         /// read timeout. If connection has no read events for indicated time throw timeout error
-        public let timeout: Duration
+        public let timeout: TimeAmount
         /// server name
         public let serverName: String?
     }
@@ -61,7 +61,7 @@ public struct TestClient: Sendable {
         host: String,
         port: Int,
         configuration: Configuration = .init(),
-        eventLoopGroupProvider: NIOEventLoopGroupProvider
+        eventLoopGroupProvider: NIOEventLoopGroupProvider = .shared(MultiThreadedEventLoopGroup.singleton)
     ) {
         self.eventLoopGroupProvider = eventLoopGroupProvider
         switch eventLoopGroupProvider {
@@ -76,21 +76,48 @@ public struct TestClient: Sendable {
         self.configuration = configuration
     }
 
+    /// Run closure with temporary test client
+    /// - Parameters:
+    ///   - host: host to connect
+    ///   - port: port to connect to
+    ///   - configuration: Client configuration
+    ///   - eventLoopGroupProvider: EventLoopGroup to use
+    ///   - operation: Closure to run
+    public static func withClient<Value>(
+        host: String,
+        port: Int,
+        configuration: Configuration = .init(),
+        eventLoopGroupProvider: NIOEventLoopGroupProvider = .shared(MultiThreadedEventLoopGroup.singleton),
+        operation: @escaping @Sendable (Self) async throws -> Value
+    ) async throws -> Value {
+        let client = Self(host: host, port: port, configuration: configuration, eventLoopGroupProvider: eventLoopGroupProvider)
+        client.connect()
+        let value: Value
+        do {
+            value = try await operation(client)
+        } catch {
+            try? await client.shutdown()
+            throw error
+        }
+        try await client.shutdown()
+        return value
+    }
+
     /// connect to HTTP server
     public func connect() {
         do {
             try self.getBootstrap()
                 .channelOption(ChannelOptions.socket(SocketOptionLevel(IPPROTO_TCP), TCP_NODELAY), value: 1)
                 .channelInitializer { channel in
-                    return channel.pipeline.addHTTPClientHandlers()
-                        .flatMap {
+                    channel.pipeline.addHTTPClientHandlers()
+                        .flatMapThrowing {
                             let handlers: [ChannelHandler] = [
                                 HTTP1ToHTTPClientCodec(),
                                 HTTPClientRequestSerializer(),
                                 HTTPClientResponseHandler(),
                                 HTTPTaskHandler(),
                             ]
-                            return channel.pipeline.addHandlers(handlers)
+                            return try channel.pipeline.syncOperations.addHandlers(handlers)
                         }
                 }
                 .connectTimeout(.seconds(5))
@@ -104,7 +131,7 @@ public struct TestClient: Sendable {
     /// shutdown client
     public func shutdown() async throws {
         do {
-            try await self.close()
+            try await self.close(mode: .all)
         } catch TestClient.Error.connectionNotOpen {
         } catch ChannelError.alreadyClosed {}
         if case .createNew = self.eventLoopGroupProvider {
@@ -147,13 +174,16 @@ public struct TestClient: Sendable {
         let channel = try await getChannel()
         let response = try await withThrowingTaskGroup(of: TestClient.Response.self) { group in
             group.addTask {
-                try await Task.sleep(for: self.configuration.timeout)
+                try await Task.sleep(nanoseconds: UInt64(self.configuration.timeout.nanoseconds))
                 throw Error.readTimeout
             }
             group.addTask {
                 let promise = self.eventLoopGroup.any().makePromise(of: TestClient.Response.self)
                 let task = HTTPTask(request: self.cleanupRequest(request), responsePromise: promise)
-                channel.writeAndFlush(task, promise: nil)
+                try await channel.writeAndFlush(task).flatMapErrorThrowing { error in
+                    promise.fail(error)
+                    throw error
+                }.get()
                 return try await promise.futureResult.get()
             }
             let response = try await group.next()
@@ -163,10 +193,18 @@ public struct TestClient: Sendable {
         return response
     }
 
-    public func close() async throws {
+    /// Execute request to server but don't wait for response.
+    public func executeAndDontWaitForResponse(_ request: TestClient.Request) async throws {
+        let channel = try await getChannel()
+        let promise = self.eventLoopGroup.any().makePromise(of: TestClient.Response.self)
+        let task = HTTPTask(request: self.cleanupRequest(request), responsePromise: promise)
+        try await channel.writeAndFlush(task)
+    }
+
+    public func close(mode: CloseMode = .output) async throws {
         self.channelPromise.completeWith(.failure(TestClient.Error.connectionNotOpen))
         let channel = try await getChannel()
-        return try await channel.close()
+        return try await channel.close(mode: mode)
     }
 
     public func getChannel() async throws -> Channel {
@@ -184,7 +222,10 @@ public struct TestClient: Sendable {
     private func getBootstrap() throws -> NIOClientTCPBootstrap {
         if let tlsConfiguration = self.configuration.tlsConfiguration {
             let sslContext = try NIOSSLContext(configuration: tlsConfiguration)
-            let tlsProvider = try NIOSSLClientTLSProvider<ClientBootstrap>(context: sslContext, serverHostname: self.configuration.serverName ?? self.host)
+            let tlsProvider = try NIOSSLClientTLSProvider<ClientBootstrap>(
+                context: sslContext,
+                serverHostname: self.configuration.serverName ?? self.host
+            )
             let bootstrap = NIOClientTCPBootstrap(ClientBootstrap(group: self.eventLoopGroup), tls: tlsProvider)
             bootstrap.enableTLS()
             return bootstrap

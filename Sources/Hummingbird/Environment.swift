@@ -12,42 +12,63 @@
 //
 //===----------------------------------------------------------------------===//
 
+import HummingbirdCore
+import NIOCore
+
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
+
 #if canImport(Glibc)
 import Glibc
 #elseif canImport(Musl)
 import Musl
 #elseif canImport(Darwin)
 import Darwin.C
+#elseif canImport(Android)
+import Android
 #else
 #error("Unsupported platform")
 #endif
-import Foundation
-import HummingbirdCore
-import NIOCore
 
 /// Access environment variables
 public struct Environment: Sendable, Decodable, ExpressibleByDictionaryLiteral {
-    struct Error: Swift.Error, Equatable {
-        enum Value {
+    public struct Error: Swift.Error, Equatable {
+        enum Code {
             case dotEnvParseError
+            case variableDoesNotExist
+            case variableDoesNotConvert
         }
 
-        private let value: Value
-        private init(_ value: Value) {
-            self.value = value
+        fileprivate let code: Code
+        public let message: String?
+        fileprivate init(_ code: Code, message: String? = nil) {
+            self.code = code
+            self.message = message
         }
 
+        public static func == (lhs: Self, rhs: Self) -> Bool {
+            lhs.code == rhs.code
+        }
+
+        /// Required variable does not exist
+        public static var variableDoesNotExist: Self { .init(.variableDoesNotExist) }
+        /// Required variable does not convert to type
+        public static var variableDoesNotConvert: Self { .init(.variableDoesNotConvert) }
+        /// Error while parsing dot env file
         public static var dotEnvParseError: Self { .init(.dotEnvParseError) }
     }
 
     var values: [String: String]
 
-    /// initialize from environment variables
+    /// Initialize from environment variables
     public init() {
         self.values = Self.getEnvironment()
     }
 
-    /// initialize from dictionary
+    /// Initialize from dictionary
     public init(values: [String: String]) {
         self.values = Self.getEnvironment()
         for (key, value) in values {
@@ -55,7 +76,7 @@ public struct Environment: Sendable, Decodable, ExpressibleByDictionaryLiteral {
         }
     }
 
-    /// initialize from dictionary literal
+    /// Initialize from dictionary literal
     public init(dictionaryLiteral elements: (String, String)...) {
         self.values = Self.getEnvironment()
         for element in elements {
@@ -76,7 +97,7 @@ public struct Environment: Sendable, Decodable, ExpressibleByDictionaryLiteral {
     /// Get environment variable with name
     /// - Parameter s: Environment variable name
     public func get(_ s: String) -> String? {
-        return self.values[s.lowercased()]
+        self.values[s.lowercased()]
     }
 
     /// Get environment variable with name as a certain type
@@ -84,10 +105,34 @@ public struct Environment: Sendable, Decodable, ExpressibleByDictionaryLiteral {
     ///   - s: Environment variable name
     ///   - as: Type we want variable to be cast to
     public func get<T: LosslessStringConvertible>(_ s: String, as: T.Type) -> T? {
-        return self.values[s.lowercased()].map { T(String($0)) } ?? nil
+        self.values[s.lowercased()].map { T(String($0)) } ?? nil
+    }
+
+    /// Require environment variable with name
+    /// - Parameter s: Environment variable name
+    public func require(_ s: String) throws -> String {
+        guard let value = self.values[s.lowercased()] else {
+            throw Error(.variableDoesNotExist, message: "Environment variable '\(s)' does not exist")
+        }
+        return value
+    }
+
+    /// Require environment variable with name as a certain type
+    /// - Parameters:
+    ///   - s: Environment variable name
+    ///   - as: Type we want variable to be cast to
+    public func require<T: LosslessStringConvertible>(_ s: String, as: T.Type) throws -> T {
+        let stringValue = try self.require(s)
+        guard let value = T(stringValue) else {
+            throw Error(.variableDoesNotConvert, message: "Environment variable '\(s)' can not be converted to \(T.self)")
+        }
+        return value
     }
 
     /// Set environment variable
+    ///
+    /// This sets the variable within this type and also calls `setenv` so future versions
+    /// of this type will also have this variable set.
     /// - Parameters:
     ///   - s: Environment variable name
     ///   - value: Environment variable name value
@@ -133,7 +178,7 @@ public struct Environment: Sendable, Decodable, ExpressibleByDictionaryLiteral {
             }
             let fileRegion = try FileRegion(fileHandle: fileHandle)
             let contents = try fileHandle.withUnsafeFileDescriptor { descriptor in
-                return Array<UInt8>(unsafeUninitializedCapacity: fileRegion.readableBytes) { bytes, size in
+                [UInt8](unsafeUninitializedCapacity: fileRegion.readableBytes) { bytes, size in
                     size = fileRegion.readableBytes
                     read(descriptor, .init(bytes.baseAddress), size)
                 }

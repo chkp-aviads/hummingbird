@@ -16,6 +16,7 @@ import Foundation
 import HTTPTypes
 import Hummingbird
 import HummingbirdTesting
+import NIOPosix
 import XCTest
 
 final class FileMiddlewareTests: XCTestCase {
@@ -25,7 +26,7 @@ final class FileMiddlewareTests: XCTestCase {
         return ByteBufferAllocator().buffer(bytes: data)
     }
 
-    static var rfc1123Formatter: DateFormatter {
+    static var rfc9110Formatter: DateFormatter {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "EEE, d MMM yyy HH:mm:ss z"
@@ -142,7 +143,8 @@ final class FileMiddlewareTests: XCTestCase {
         defer { XCTAssertNoThrow(try FileManager.default.removeItem(at: fileURL)) }
 
         try await app.test(.router) { client in
-            let (eTag, modificationDate) = try await client.execute(uri: filename, method: .get, headers: [.range: "bytes=-3999"]) { response -> (String, String) in
+            let (eTag, modificationDate) = try await client.execute(uri: filename, method: .get, headers: [.range: "bytes=-3999"]) {
+                response -> (String, String) in
                 let eTag = try XCTUnwrap(response.headers[.eTag])
                 let modificationDate = try XCTUnwrap(response.headers[.lastModified])
                 let slice = buffer.getSlice(at: 0, length: 4000)
@@ -183,7 +185,7 @@ final class FileMiddlewareTests: XCTestCase {
                 XCTAssertEqual(response.headers[.contentLength], text.utf8.count.description)
                 XCTAssertEqual(response.headers[.contentType], "text/plain")
                 let responseDateString = try XCTUnwrap(response.headers[.lastModified])
-                let responseDate = try XCTUnwrap(Self.rfc1123Formatter.date(from: responseDateString))
+                let responseDate = try XCTUnwrap(Self.rfc9110Formatter.date(from: responseDateString))
                 XCTAssert(date < responseDate + 2 && date > responseDate - 2)
             }
         }
@@ -226,7 +228,7 @@ final class FileMiddlewareTests: XCTestCase {
 
         try await app.test(.router) { client in
             let eTag = try await client.execute(uri: filename, method: .head) { response in
-                return try XCTUnwrap(response.headers[.eTag])
+                try XCTUnwrap(response.headers[.eTag])
             }
             try await client.execute(uri: filename, method: .get, headers: [.ifNoneMatch: eTag]) { response in
                 XCTAssertEqual(response.status, .notModified)
@@ -256,13 +258,13 @@ final class FileMiddlewareTests: XCTestCase {
 
         try await app.test(.router) { client in
             let modifiedDate = try await client.execute(uri: filename, method: .head) { response in
-                return try XCTUnwrap(response.headers[.lastModified])
+                try XCTUnwrap(response.headers[.lastModified])
             }
             try await client.execute(uri: filename, method: .get, headers: [.ifModifiedSince: modifiedDate]) { response in
                 XCTAssertEqual(response.status, .notModified)
             }
             // one minute before current date
-            let date = try XCTUnwrap(Self.rfc1123Formatter.string(from: Date(timeIntervalSinceNow: -60)))
+            let date = try XCTUnwrap(Self.rfc9110Formatter.string(from: Date(timeIntervalSinceNow: -60)))
             try await client.execute(uri: filename, method: .get, headers: [.ifModifiedSince: date]) { response in
                 XCTAssertEqual(response.status, .ok)
             }
@@ -312,6 +314,43 @@ final class FileMiddlewareTests: XCTestCase {
         try await app.test(.router) { client in
             try await client.execute(uri: "/", method: .get) { response in
                 XCTAssertEqual(String(buffer: response.body), text)
+            }
+        }
+    }
+
+    func testSymlink() async throws {
+        let router = Router()
+        router.middlewares.add(FileMiddleware(".", searchForIndexHtml: true))
+        let app = Application(responder: router.buildResponder())
+
+        let text = "Test file contents"
+        let data = Data(text.utf8)
+        let fileURL = URL(fileURLWithPath: "test.html")
+        XCTAssertNoThrow(try data.write(to: fileURL))
+        defer { XCTAssertNoThrow(try FileManager.default.removeItem(at: fileURL)) }
+
+        let fileIO = NonBlockingFileIO(threadPool: .singleton)
+
+        try await app.test(.router) { client in
+            try await client.execute(uri: "/test.html", method: .get) { response in
+                XCTAssertEqual(String(buffer: response.body), text)
+            }
+
+            try await client.execute(uri: "/", method: .get) { response in
+                XCTAssertEqual(String(buffer: response.body), "")
+            }
+
+            try await fileIO.symlink(path: "index.html", to: "test.html")
+
+            do {
+                try await client.execute(uri: "/", method: .get) { response in
+                    XCTAssertEqual(String(buffer: response.body), text)
+                }
+
+                try await fileIO.unlink(path: "index.html")
+            } catch {
+                try await fileIO.unlink(path: "index.html")
+                throw error
             }
         }
     }
@@ -367,11 +406,11 @@ final class FileMiddlewareTests: XCTestCase {
             }
 
             func getFileIdentifier(_ path: String) -> String? {
-                return path
+                path
             }
 
             func getAttributes(id path: String) async throws -> FileAttributes? {
-                return .init(
+                .init(
                     isFolder: path.last == "/",
                     size: path.utf8.count
                 )
@@ -438,7 +477,7 @@ final class FileMiddlewareTests: XCTestCase {
             }
 
             func getFileIdentifier(_ path: String) -> String? {
-                return path
+                path
             }
 
             func getAttributes(id path: String) async throws -> FileAttributes? {
@@ -470,6 +509,130 @@ final class FileMiddlewareTests: XCTestCase {
             try await client.execute(uri: "test", method: .get) { response in
                 XCTAssertEqual(response.status, .ok)
                 XCTAssertEqual(String(buffer: response.body), "Test this")
+            }
+        }
+    }
+
+    func testFilesWithNonLowercaseFileExtensions() async throws {
+        let router = Router()
+        router.middlewares.add(FileMiddleware("."))
+        let app = Application(responder: router.buildResponder())
+
+        let testedExtensions: [(String, UInt)] = [
+            ("jpg", #line),
+            ("JPG", #line),
+            ("JpG", #line),
+            ("JPeG", #line),
+            ("JPEG", #line),
+        ]
+
+        try await app.test(.router) { client in
+            for (index, (testedExtension, line)) in testedExtensions.enumerated() {
+                let fileURL = URL(fileURLWithPath: "\(#function)-\(index)")
+                    .appendingPathExtension(testedExtension)
+                let filename = fileURL.lastPathComponent
+                let data = Data()
+                XCTAssertNoThrow(try data.write(to: fileURL))
+                defer { XCTAssertNoThrow(try FileManager.default.removeItem(at: fileURL)) }
+
+                try await client.execute(uri: filename, method: .get) { response in
+                    XCTAssertEqual(response.headers[.contentType], "image/jpeg", file: #filePath, line: line)
+                }
+            }
+        }
+    }
+
+    func testCustomMIMEType() async throws {
+        let hlsStream = try XCTUnwrap(MediaType(from: "application/x-mpegURL"))
+        let router = Router()
+        router.middlewares.add(FileMiddleware(".").withAdditionalMediaType(hlsStream, mappedToFileExtension: "m3u8"))
+        let app = Application(responder: router.buildResponder())
+
+        let filename = "\(#function).m3u8"
+        let content = """
+            #EXTM3U
+            #EXT-X-VERSION:7
+            #EXT-X-ALLOW-CACHE:YES
+            #EXT-X-TARGETDURATION:0
+            #EXT-X-MEDIA-SEQUENCE:10
+            #EXT-X-PLAYLIST-TYPE:EVENT
+            #EXT-X-MAP:URI="init.mp4"
+            #EXT-X-DISCONTINUITY
+            #EXTINF:0.000000,
+            live000010.m4s
+            """
+        let data = Data(content.utf8)
+        let fileURL = URL(fileURLWithPath: filename)
+        XCTAssertNoThrow(try data.write(to: fileURL))
+        defer { XCTAssertNoThrow(try FileManager.default.removeItem(at: fileURL)) }
+
+        try await app.test(.router) { client in
+            try await client.execute(uri: filename, method: .get) { response in
+                XCTAssertEqual(String(buffer: response.body), content)
+                let contentType = try XCTUnwrap(response.headers[.contentType])
+                let validTypes = Set(["application/vnd.apple.mpegurl", "application/x-mpegurl"])
+                XCTAssert(validTypes.contains(contentType))
+            }
+        }
+    }
+
+    func testCustomMIMETypeCaseInsensitivity() async throws {
+        let hlsStream = try XCTUnwrap(MediaType(from: "application/x-mpegURL"))
+        let router = Router()
+        router.middlewares.add(FileMiddleware(".").withAdditionalMediaType(hlsStream, mappedToFileExtension: "m3u8"))
+        let app = Application(responder: router.buildResponder())
+
+        let filename = "\(#function).m3U8"
+        let data = Data("".utf8)
+        let fileURL = URL(fileURLWithPath: filename)
+        XCTAssertNoThrow(try data.write(to: fileURL))
+        defer { XCTAssertNoThrow(try FileManager.default.removeItem(at: fileURL)) }
+
+        try await app.test(.router) { client in
+            try await client.execute(uri: filename, method: .get) { response in
+                let contentType = try XCTUnwrap(response.headers[.contentType])
+                let validTypes = Set(["application/vnd.apple.mpegurl", "application/x-mpegurl"])
+                XCTAssert(validTypes.contains(contentType))
+            }
+        }
+    }
+
+    func testCustomMIMETypes() async throws {
+        let hlsStream = try XCTUnwrap(MediaType(from: "application/x-mpegURL"))
+        let router = Router()
+        let fileMiddleware = FileMiddleware<BasicRequestContext, LocalFileSystem>(".")
+            .withAdditionalMediaType(hlsStream, mappedToFileExtension: "m3u8")
+            .withAdditionalMediaTypes(forFileExtensions: [
+                "foo": MediaType(type: .any, subType: "x-foo"),
+                "M3U8": MediaType(type: .application, subType: "vnd.apple.mpegURL"),
+            ])
+        router.middlewares.add(fileMiddleware)
+        let app = Application(responder: router.buildResponder())
+
+        let filename = "\(#function).m3u8"
+        let content = """
+            #EXTM3U
+            #EXT-X-VERSION:7
+            #EXT-X-ALLOW-CACHE:YES
+            #EXT-X-TARGETDURATION:0
+            #EXT-X-MEDIA-SEQUENCE:10
+            #EXT-X-PLAYLIST-TYPE:EVENT
+            #EXT-X-MAP:URI="init.mp4"
+            #EXT-X-DISCONTINUITY
+            #EXTINF:0.000000,
+            live000010.m4s
+            """
+        let data = Data(content.utf8)
+        let fileURL = URL(fileURLWithPath: filename)
+        XCTAssertNoThrow(try data.write(to: fileURL))
+        defer { XCTAssertNoThrow(try FileManager.default.removeItem(at: fileURL)) }
+
+        try await app.test(.router) { client in
+            try await client.execute(uri: filename, method: .get) { response in
+                XCTAssertEqual(String(buffer: response.body), content)
+                let contentType = try XCTUnwrap(response.headers[.contentType])
+                let validTypes = Set(["application/vnd.apple.mpegurl", "application/vnd.apple.mpegURL"])
+                XCTAssert(validTypes.contains(contentType))
             }
         }
     }
