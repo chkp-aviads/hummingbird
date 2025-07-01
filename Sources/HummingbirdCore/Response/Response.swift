@@ -45,10 +45,17 @@ public struct Response: Sendable {
         self.status = status
         self.headers = headers
         self.body = body
+        self.extensions = .init()
         if let contentLength = body.contentLength, !self.headers.contains(.contentLength) {
             self.headers[.contentLength] = String(describing: contentLength)
         }
     }
+    
+    /// Extensions for additional data
+    /// This is useful for storing additional information that is not part of the standard HTTP response
+    /// While Humminbbird removed this in favor of external context, it was only done for requests and there is no support for it in responses
+    /// So we add it here
+    public var extensions: HBSendableExtensions<Response>
 
     /// Return HEAD response based off this response
     public func createHeadResponse() -> Response {

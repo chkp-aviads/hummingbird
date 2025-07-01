@@ -19,7 +19,7 @@ import NIOTransportServices
 
 /// Address to bind server to
 public struct BindAddress: Sendable, Equatable {
-    enum _Internal: Equatable {
+    public enum _Internal: Equatable, Sendable {
         case hostname(_ host: String = "127.0.0.1", port: Int = 8080)
         case unixDomainSocket(path: String)
         #if canImport(Network)
@@ -27,8 +27,8 @@ public struct BindAddress: Sendable, Equatable {
         #endif
     }
 
-    let value: _Internal
-    init(_ value: _Internal) {
+    public let value: _Internal
+    public init(_ value: _Internal) {
         self.value = value
     }
 
