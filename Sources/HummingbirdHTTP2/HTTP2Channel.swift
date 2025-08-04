@@ -104,13 +104,24 @@ public struct HTTP2Channel: ServerChildChannel {
     ///   - logger: Logger to use while processing messages
     public func handle(value: Value, logger: Logger) async {
         do {
-            try await withThrowingTaskGroup { group in
-                for try await client in value.http2Connection.inbound {
-                    group.addTask {
-                        await self.http2Stream.handle(value: client, logger: logger)
+            if #available(iOS 17.0, *) {
+                try await withThrowingDiscardingTaskGroup { group in
+                    for try await client in value.http2Connection.inbound {
+                        group.addTask {
+                            await self.http2Stream.handle(value: client, logger: logger)
+                        }
                     }
                 }
-                try await group.waitForAll()
+            } else {
+                // Fallback on earlier versions
+                try await withThrowingTaskGroup { group in
+                    for try await client in value.http2Connection.inbound {
+                        group.addTask {
+                            await self.http2Stream.handle(value: client, logger: logger)
+                        }
+                    }
+                    try await group.waitForAll()
+                }
             }
         } catch {
             logger.debug("Error handling inbound connection for HTTP2 handler: \(error)")

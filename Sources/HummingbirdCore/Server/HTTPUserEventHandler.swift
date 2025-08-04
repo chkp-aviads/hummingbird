@@ -26,9 +26,12 @@ public final class HTTPUserEventHandler: ChannelDuplexHandler, RemovableChannelH
     var requestsBeingRead: Int = 0
     var requestsInProgress: Int = 0
     let logger: Logger
+    let quieceTimeout: TimeAmount?
+    private var quiesceTimeoutTask: Scheduled<Void>?
 
-    public init(logger: Logger) {
+    public init(logger: Logger, quiesceTimeout: TimeAmount?) {
         self.logger = logger
+        self.quieceTimeout = quiesceTimeout
     }
 
     public func write(context: ChannelHandlerContext, data: NIOAny, promise: EventLoopPromise<Void>?) {
@@ -39,6 +42,8 @@ public final class HTTPUserEventHandler: ChannelDuplexHandler, RemovableChannelH
             if self.closeAfterResponseWritten {
                 context.close(promise: nil)
                 self.closeAfterResponseWritten = false
+                self.quiesceTimeoutTask?.cancel()
+                self.quiesceTimeoutTask = nil
             }
         } else {
             context.write(data, promise: promise)
@@ -66,6 +71,13 @@ public final class HTTPUserEventHandler: ChannelDuplexHandler, RemovableChannelH
             // wait for them to finish
             if self.requestsInProgress > 0 {
                 self.closeAfterResponseWritten = true
+                // Schedule a timeout to close the connection after quiesceTimeout if specified
+                if let quieceTimeout {
+                    self.quiesceTimeoutTask = context.eventLoop.scheduleTask(in: quieceTimeout) {
+                        self.logger.warning("Quiesce timeout reached, closing channel")
+                        context.close(promise: nil)
+                    }
+                }
             } else {
                 context.close(promise: nil)
             }
@@ -80,6 +92,19 @@ public final class HTTPUserEventHandler: ChannelDuplexHandler, RemovableChannelH
 
         default:
             context.fireUserInboundEventTriggered(event)
+        }
+    }
+    
+    public func handlerRemoved(context: ChannelHandlerContext) {
+        if let quiesceTimeoutTask {
+            quiesceTimeoutTask.cancel()
+            self.quiesceTimeoutTask = nil
+            
+            // Cancel the timeout task if the handler is removed
+            if context.channel.isActive {
+                self.logger.info("Did not quiesce before handler removal, closing channel")
+                context.close(promise: nil)
+            }
         }
     }
 }

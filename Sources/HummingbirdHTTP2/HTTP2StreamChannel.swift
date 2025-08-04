@@ -48,7 +48,7 @@ struct HTTP2StreamChannel: ServerChildChannel {
             if let idleTimeout = self.configuration.idleTimeout {
                 try channel.pipeline.syncOperations.addHandler(IdleStateHandler(readTimeout: idleTimeout))
             }
-            try channel.pipeline.syncOperations.addHandler(HTTPUserEventHandler(logger: logger))
+            try channel.pipeline.syncOperations.addHandler(HTTPUserEventHandler(logger: logger, quiesceTimeout: self.configuration.quiesceTimeout))
             return try HTTP1Channel.Value(wrappingChannelSynchronously: channel)
         }
     }

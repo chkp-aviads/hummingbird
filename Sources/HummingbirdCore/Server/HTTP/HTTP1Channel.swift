@@ -28,6 +28,8 @@ public struct HTTP1Channel: ServerChildChannel, HTTPChannelHandler {
         public var additionalChannelHandlers: @Sendable () -> [any RemovableChannelHandler]
         /// Time before closing an idle channel.
         public var idleTimeout: TimeAmount?
+        /// Timeout for quiesce operation after which channel will be closed.
+        public var quiesceTimeout: TimeAmount? = nil
         /// Internal flag for enabling/disabling pipeline assistance
         package var pipliningAssistance: Bool = false
 
@@ -38,10 +40,12 @@ public struct HTTP1Channel: ServerChildChannel, HTTPChannelHandler {
         ///   - idleTimeout: Time before closing an idle channel
         public init(
             additionalChannelHandlers: @autoclosure @escaping @Sendable () -> [any RemovableChannelHandler] = [],
-            idleTimeout: TimeAmount? = nil
+            idleTimeout: TimeAmount? = nil,
+            quiesceTimeout: TimeAmount? = nil
         ) {
             self.additionalChannelHandlers = additionalChannelHandlers
             self.idleTimeout = idleTimeout
+            self.quiesceTimeout = quiesceTimeout
         }
     }
 
@@ -88,7 +92,7 @@ public struct HTTP1Channel: ServerChildChannel, HTTPChannelHandler {
             if let idleTimeout = self.configuration.idleTimeout {
                 try channel.pipeline.syncOperations.addHandler(IdleStateHandler(readTimeout: idleTimeout))
             }
-            try channel.pipeline.syncOperations.addHandler(HTTPUserEventHandler(logger: logger))
+            try channel.pipeline.syncOperations.addHandler(HTTPUserEventHandler(logger: logger, quiesceTimeout: self.configuration.quiesceTimeout))
             return try NIOAsyncChannel(
                 wrappingChannelSynchronously: channel,
                 configuration: .init(isOutboundHalfClosureEnabled: true)

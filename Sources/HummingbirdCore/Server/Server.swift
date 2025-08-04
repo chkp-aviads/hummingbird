@@ -58,12 +58,13 @@ public actor Server<ChildChannel: ServerChildChannel>: Service {
     }
 
     var state: State {
-        didSet { self.logger.trace("Server State: \(self.state)") }
+        didSet { self.logger.trace("Server \(name) State: \(self.state)") }
     }
 
     /// Logger used by Server
     public nonisolated let logger: Logger
     let eventLoopGroup: EventLoopGroup
+    let name: String
 
     /// HTTP server errors
     public enum Error: Swift.Error {
@@ -92,6 +93,7 @@ public actor Server<ChildChannel: ServerChildChannel>: Service {
         )
         self.eventLoopGroup = eventLoopGroup
         self.logger = logger
+        self.name = configuration.serverName ?? "?"
     }
 
     public func run() async throws {
@@ -118,19 +120,35 @@ public actor Server<ChildChannel: ServerChildChannel>: Service {
 
                         let logger = self.logger
                         // We can now start to handle our work.
-//                        await withDiscardingTaskGroup { group in  // TODO:: iOS 17
-                        await withTaskGroup(of: Void.self) { group in
-                            do {
-                                try await asyncChannel.executeThenClose { inbound in
-                                    for try await childChannel in inbound {
-                                        group.addTask {
-                                            await childChannelSetup.handle(value: childChannel, logger: logger)
+                        if #available(iOS 17.0, *) {
+                            await withDiscardingTaskGroup { [name] group in
+                                do {
+                                    try await asyncChannel.executeThenClose { inbound in
+                                        for try await childChannel in inbound {
+                                            group.addTask {
+                                                await childChannelSetup.handle(value: childChannel, logger: logger)
+                                            }
                                         }
                                     }
+                                } catch {
+                                    logger.error("Waiting on child channel: \(error)")
                                 }
-                                await group.waitForAll() // Ensure all tasks    // TODO:: remove iOS 17
-                            } catch {
-                                logger.error("Waiting on child channel: \(error)")
+                            }
+                        } else {
+                            // Fallback on earlier versions
+                            await withTaskGroup(of: Void.self) { [name] group in
+                                do {
+                                    try await asyncChannel.executeThenClose { inbound in
+                                        for try await childChannel in inbound {
+                                            group.addTask {
+                                                await childChannelSetup.handle(value: childChannel, logger: logger)
+                                            }
+                                        }
+                                    }
+                                    await group.waitForAll() // Ensure all tasks
+                                } catch {
+                                    logger.error("Waiting on child channel: \(error)")
+                                }
                             }
                         }
                     } onGracefulShutdown: {
@@ -144,7 +162,7 @@ public actor Server<ChildChannel: ServerChildChannel>: Service {
                     }
 
                 case .shuttingDown, .shutdown:
-                    self.logger.info("Shutting down")
+                    self.logger.info("Shutting down \(name)")
                     try await asyncChannel.channel.close()
                 }
             } catch {
