@@ -29,7 +29,7 @@ public final class HTTPUserEventHandler: ChannelDuplexHandler, RemovableChannelH
     let quieceTimeout: TimeAmount?
     private var quiesceTimeoutTask: Scheduled<Void>?
 
-    public init(logger: Logger, quiesceTimeout: TimeAmount?) {
+    public init(logger: Logger, quiesceTimeout: TimeAmount? = nil) {
         self.logger = logger
         self.quieceTimeout = quiesceTimeout
     }
