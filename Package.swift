@@ -25,13 +25,14 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-http-types.git", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-metrics.git", from: "2.5.0"),
         .package(url: "https://github.com/apple/swift-distributed-tracing.git", from: "1.1.0"),
-        .package(url: "https://github.com/chkp-aviads/swift-nio.git", from: "2.84.0"),
-        .package(url: "https://github.com/chkp-aviads/swift-nio-extras.git", from: "1.27.1"),
-        .package(url: "https://github.com/chkp-aviads/swift-nio-http2.git", from: "1.38.0"),
-        .package(url: "https://github.com/chkp-aviads/swift-nio-ssl.git", from: "2.32.0"),
-        .package(url: "https://github.com/chkp-aviads/swift-nio-transport-services.git", from: "1.25.2"),
+        .package(url: "https://github.com/chkp-aviads/swift-nio.git", from: "2.86.2"),
+        .package(url: "https://github.com/chkp-aviads/swift-nio-extras.git", from: "1.29.1"),
+        .package(url: "https://github.com/chkp-aviads/swift-nio-http2.git", from: "1.38.1"),
+        .package(url: "https://github.com/chkp-aviads/swift-nio-ssl.git", from: "2.35.1"),
+        .package(url: "https://github.com/chkp-aviads/swift-nio-transport-services.git", from: "1.25.5"),
         .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "2.0.0"),
-        .package(url: "https://github.com/chkp-aviads/async-http-client.git", from: "1.27.0"),
+        .package(url: "https://github.com/chkp-aviads/async-http-client.git", from: "1.29.1"),
+        .package(url: "https://github.com/apple/swift-service-context.git", from: "1.1.0")
     ],
     targets: [
         .target(
@@ -47,6 +48,7 @@ let package = Package(
                 .product(name: "Tracing", package: "swift-distributed-tracing"),
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOPosix", package: "swift-nio"),
+                .product(name: "ServiceContextModule", package: "swift-service-context"),
             ],
             swiftSettings: swiftSettings
         ),
@@ -58,6 +60,7 @@ let package = Package(
                 .product(name: "HTTPTypes", package: "swift-http-types"),
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "NIOCore", package: "swift-nio"),
+                .product(name: "NIOHTTP1", package: "swift-nio"),
                 .product(name: "NIOConcurrencyHelpers", package: "swift-nio"),
                 .product(name: "NIOHTTPTypes", package: "swift-nio-extras"),
                 .product(name: "NIOHTTPTypesHTTP1", package: "swift-nio-extras"),
@@ -101,6 +104,7 @@ let package = Package(
             dependencies: [
                 .byName(name: "HummingbirdCore"),
                 .product(name: "NIOCore", package: "swift-nio"),
+                .product(name: "NIOTLS", package: "swift-nio"),
                 .product(name: "NIOHTTP2", package: "swift-nio-http2"),
                 .product(name: "NIOHTTPTypes", package: "swift-nio-extras"),
                 .product(name: "NIOHTTPTypesHTTP1", package: "swift-nio-extras"),
