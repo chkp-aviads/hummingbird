@@ -45,7 +45,7 @@ let package = Package(
         .package(url: "https://github.com/chkp-aviads/swift-nio-ssl.git", from: "2.36.1"),
         .package(url: "https://github.com/chkp-aviads/swift-nio-transport-services.git", from: "1.26.1"),
         .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "2.0.0"),
-        .package(url: "https://github.com/chkp-aviads/async-http-client.git", from: "1.32.1"),
+        .package(url: "https://github.com/chkp-aviads/async-http-client.git", from: "1.32.2"),
         .package(url: "https://github.com/apple/swift-configuration.git", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-service-context.git", from: "1.1.0")
     ],
