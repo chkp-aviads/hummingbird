@@ -12,8 +12,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+import Foundation
+
 /// Error thrown from parsing URLEncoded forms
-public struct URLEncodedFormError: Error, CustomStringConvertible {
+public struct URLEncodedFormError: Error, CustomStringConvertible, Equatable {
     public struct Code: Sendable, Equatable {
         fileprivate enum Internal: Equatable {
             case duplicateKeys
@@ -45,7 +47,7 @@ public struct URLEncodedFormError: Error, CustomStringConvertible {
     public let code: Code
     public let value: String
 
-    init(code: Code, value: String) {
+    package init(code: Code, value: String) {
         self.code = code
         self.value = value
     }
@@ -199,7 +201,7 @@ enum URLEncodedFormNode: CustomStringConvertible, Equatable {
         /// string value of node (with percent encoding removed)
         let value: String
 
-        init(_ value: LosslessStringConvertible) {
+        init(_ value: some LosslessStringConvertible) {
             self.value = String(describing: value)
         }
 

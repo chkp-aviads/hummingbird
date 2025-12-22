@@ -12,10 +12,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-import NIOCore
-import ServiceLifecycle
+public import ServiceLifecycle
 
 /// Protocol for driver supporting persistent Key/Value pairs across requests
+@available(macOS 14, iOS 16.0, tvOS 16.0, macCatalyst 16.0, *)
 public protocol PersistDriver: Service {
     /// shutdown driver
     func shutdown() async throws
@@ -25,7 +25,7 @@ public protocol PersistDriver: Service {
     ///   - key: Key to store value against
     ///   - value: Codable value to store
     ///   - expires: If non-nil defines time that value will expire
-    func create<Object: Codable & Sendable>(key: String, value: Object, expires: TimeAmount?) async throws
+    func create<Object: Codable & Sendable>(key: String, value: Object, expires: Duration?) async throws
 
     /// set value for key. If value already exists overwrite it
     /// - Parameters:
@@ -33,7 +33,7 @@ public protocol PersistDriver: Service {
     ///   - value: Codable value to store
     ///   - expires: If non-nil defines time that value will expire in. If nil and value already exists
     ///      and it already has an expiration time then original expiration time should be conserved.
-    func set<Object: Codable & Sendable>(key: String, value: Object, expires: TimeAmount?) async throws
+    func set<Object: Codable & Sendable>(key: String, value: Object, expires: Duration?) async throws
 
     /// get value for key
     /// - Parameters:
@@ -47,6 +47,7 @@ public protocol PersistDriver: Service {
     func remove(key: String) async throws
 }
 
+@available(macOS 14, iOS 16.0, tvOS 16.0, macCatalyst 16.0, *)
 extension PersistDriver {
     /// default implemenation of shutdown()
     public func shutdown() async throws {}

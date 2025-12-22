@@ -13,16 +13,16 @@
 //===----------------------------------------------------------------------===//
 
 import HTTPTypes
-import Logging
+public import Logging
 import NIOConcurrencyHelpers
-import NIOCore
+public import NIOCore
 import NIOHTTP1
-import NIOHTTPTypes
+public import NIOHTTPTypes
 import ServiceLifecycle
 
 /// Protocol for HTTP channels
 public protocol HTTPChannelHandler: ServerChildChannel {
-    typealias Responder = @Sendable (Request, consuming ResponseWriter, Channel) async throws -> Void
+    typealias Responder = @Sendable (Request, consuming ResponseWriter, any Channel) async throws -> Void
     /// HTTP Request responder
     var responder: Responder { get }
 }

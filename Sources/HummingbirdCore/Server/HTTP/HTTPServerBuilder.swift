@@ -12,9 +12,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-import Logging
-import NIOCore
-import ServiceLifecycle
+public import Logging
+public import NIOCore
+public import ServiceLifecycle
 
 /// Build server that takes an HTTP responder
 ///
@@ -40,11 +40,11 @@ public struct HTTPServerBuilder: Sendable {
     /// - Returns: Server Service
     public func buildServer(
         configuration: ServerConfiguration,
-        eventLoopGroup: EventLoopGroup,
+        eventLoopGroup: any EventLoopGroup,
         logger: Logger,
         responder: @escaping HTTPChannelHandler.Responder,
-        onServerRunning: (@Sendable (Channel) async -> Void)? = nil
-    ) throws -> Service {
+        onServerRunning: (@Sendable (any Channel) async -> Void)? = nil
+    ) throws -> any Service {
         let childChannel = try buildChildChannel(responder)
         return childChannel.server(configuration: configuration, onServerRunning: onServerRunning, eventLoopGroup: eventLoopGroup, logger: logger)
     }

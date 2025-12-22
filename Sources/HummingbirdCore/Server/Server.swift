@@ -12,11 +12,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-import Logging
-import NIOCore
+public import Logging
+public import NIOCore
 import NIOExtras
 import NIOPosix
-import ServiceLifecycle
+public import ServiceLifecycle
 
 #if canImport(Network)
 import Network
@@ -31,7 +31,7 @@ public actor Server<ChildChannel: ServerChildChannel>: Service {
         case initial(
             childChannelSetup: ChildChannel,
             configuration: ServerConfiguration,
-            onServerRunning: (@Sendable (Channel) async -> Void)?
+            onServerRunning: (@Sendable (any Channel) async -> Void)?
         )
         case starting
         case running(
@@ -63,7 +63,7 @@ public actor Server<ChildChannel: ServerChildChannel>: Service {
 
     /// Logger used by Server
     public nonisolated let logger: Logger
-    let eventLoopGroup: EventLoopGroup
+    let eventLoopGroup: any EventLoopGroup
     let name: String
 
     /// HTTP server errors
@@ -82,8 +82,8 @@ public actor Server<ChildChannel: ServerChildChannel>: Service {
     public init(
         childChannelSetup: ChildChannel,
         configuration: ServerConfiguration,
-        onServerRunning: (@Sendable (Channel) async -> Void)? = nil,
-        eventLoopGroup: EventLoopGroup,
+        onServerRunning: (@Sendable (any Channel) async -> Void)? = nil,
+        eventLoopGroup: any EventLoopGroup,
         logger: Logger
     ) {
         self.state = .initial(
@@ -121,7 +121,7 @@ public actor Server<ChildChannel: ServerChildChannel>: Service {
                         let logger = self.logger
                         // We can now start to handle our work.
                         if #available(iOS 17.0, *) {
-                            await withDiscardingTaskGroup { [name] group in
+                            await withDiscardingTaskGroup { group in
                                 do {
                                     try await asyncChannel.executeThenClose { inbound in
                                         for try await childChannel in inbound {
@@ -136,7 +136,7 @@ public actor Server<ChildChannel: ServerChildChannel>: Service {
                             }
                         } else {
                             // Fallback on earlier versions
-                            await withTaskGroup(of: Void.self) { [name] group in
+                            await withTaskGroup(of: Void.self) { group in
                                 do {
                                     try await asyncChannel.executeThenClose { inbound in
                                         for try await childChannel in inbound {
@@ -218,7 +218,7 @@ public actor Server<ChildChannel: ServerChildChannel>: Service {
         childChannelSetup: ChildChannel,
         configuration: ServerConfiguration
     ) async throws -> (AsyncServerChannel, ServerQuiescingHelper) {
-        var bootstrap: ServerBootstrapProtocol
+        var bootstrap: any ServerBootstrapProtocol
         #if canImport(Network)
         if let tsBootstrap = self.createTSBootstrap(configuration: configuration) {
             bootstrap = tsBootstrap
@@ -352,20 +352,20 @@ protocol ServerBootstrapProtocol {
     ///
     /// - parameters:
     ///     - initializer: A closure that initializes the provided `Channel`.
-    func serverChannelInitializer(_ initializer: @escaping @Sendable (Channel) -> EventLoopFuture<Void>) -> Self
+    func serverChannelInitializer(_ initializer: @escaping @Sendable (any Channel) -> EventLoopFuture<Void>) -> Self
 
     func bind<Output: Sendable>(
         host: String,
         port: Int,
         serverBackPressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark?,
-        childChannelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<Output>
+        childChannelInitializer: @escaping @Sendable (any Channel) -> EventLoopFuture<Output>
     ) async throws -> NIOAsyncChannel<Output, Never>
 
     func bind<Output: Sendable>(
         unixDomainSocketPath: String,
         cleanupExistingSocketFile: Bool,
         serverBackPressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark?,
-        childChannelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<Output>
+        childChannelInitializer: @escaping @Sendable (any Channel) -> EventLoopFuture<Output>
     ) async throws -> NIOAsyncChannel<Output, Never>
 }
 
@@ -380,7 +380,7 @@ extension NIOTSListenerBootstrap: ServerBootstrapProtocol {
         unixDomainSocketPath: String,
         cleanupExistingSocketFile: Bool,
         serverBackPressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark?,
-        childChannelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<Output>
+        childChannelInitializer: @escaping @Sendable (any Channel) -> EventLoopFuture<Output>
     ) async throws -> NIOAsyncChannel<Output, Never> {
         preconditionFailure("Binding to a unixDomainSocketPath is currently not available with NIOTSListenerBootstrap.")
     }

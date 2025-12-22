@@ -12,10 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-import HTTPTypes
-import Hummingbird
-import NIOCore
-import ServiceLifecycle
+public import HTTPTypes
+public import Hummingbird
 
 /// Response structure returned by testing framework
 public struct TestResponse: Sendable {
@@ -93,5 +91,5 @@ protocol ApplicationTestFramework {
     associatedtype Client: TestClientProtocol
 
     /// Run test server
-    func run<Value>(_ test: @Sendable (any TestClientProtocol) async throws -> Value) async throws -> Value
+    func run<Value>(_ test: @Sendable (Client) async throws -> Value) async throws -> Value
 }

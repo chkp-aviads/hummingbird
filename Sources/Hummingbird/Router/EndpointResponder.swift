@@ -12,7 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-import HTTPTypes
+public import HTTPTypes
 
 /// Type-erased wrapper for HTTPResponder to support iOS 15
 @usableFromInline

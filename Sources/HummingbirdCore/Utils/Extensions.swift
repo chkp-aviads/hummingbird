@@ -163,12 +163,12 @@ public struct HBSendableExtensions<ParentObject>: Sendable {
     @usableFromInline
     struct Item: Sendable {
         @usableFromInline
-        internal init(value: Sendable) {
+        internal init(value: any Sendable) {
             self.value = value
         }
 
         @usableFromInline
-        let value: Sendable
+        let value: any Sendable
     }
 
     @usableFromInline

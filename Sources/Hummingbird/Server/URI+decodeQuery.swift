@@ -12,7 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-import HummingbirdCore
+public import HummingbirdCore
+import Logging
 
 extension URI {
     /// Decode request query using ``Hummingbird/URLEncodedFormDecoder``.
@@ -37,7 +38,7 @@ extension URI {
             let path = context.codingPath.pathKeyValue
             let message = "Type mismatch for `\(path)` key, expected `\(type)` type."
             throw HTTPError(.badRequest, message: message)
-        } catch let error as HTTPResponseError {
+        } catch let error as any HTTPResponseError {
             context.logger.debug("Decode Error: \(error)")
             throw error
         }

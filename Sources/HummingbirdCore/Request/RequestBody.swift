@@ -13,9 +13,9 @@
 //===----------------------------------------------------------------------===//
 
 import Collections
-import NIOConcurrencyHelpers
-import NIOCore
-import NIOHTTPTypes
+public import NIOConcurrencyHelpers
+public import NIOCore
+package import NIOHTTPTypes
 
 /// Request Body
 ///
@@ -289,7 +289,7 @@ extension RequestBody {
         ///
         /// - Parameter error: The error to throw
         @inlinable
-        public func finish(_ error: Error) {
+        public func finish(_ error: any Error) {
             self.source.finish(error)
         }
     }

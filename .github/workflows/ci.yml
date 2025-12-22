@@ -13,6 +13,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-ci
   cancel-in-progress: true
 
+env:
+  HB_ENABLE_ALL_TRAITS: true
+
 jobs:
   linux:
     runs-on: ubuntu-latest
@@ -24,7 +27,7 @@ jobs:
       image: ${{ matrix.image }}
     steps:
     - name: Checkout
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
     - name: Test
       run: |
         swift test --enable-code-coverage

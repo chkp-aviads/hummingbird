@@ -19,6 +19,7 @@ import Logging
 import NIOCore
 import NIOPosix
 import ServiceLifecycle
+import UnixSignals
 
 /// Test using a live server
 final class LiveTestFramework<App: ApplicationProtocol>: ApplicationTestFramework {
@@ -48,7 +49,7 @@ final class LiveTestFramework<App: ApplicationProtocol>: ApplicationTestFramewor
     }
 
     /// Start tests
-    func run<Value>(_ test: @Sendable (TestClientProtocol) async throws -> Value) async throws -> Value {
+    func run<Value>(_ test: @Sendable (Client) async throws -> Value) async throws -> Value {
         try await withThrowingTaskGroup(of: Void.self) { group in
             let serviceGroup = ServiceGroup(
                 configuration: .init(

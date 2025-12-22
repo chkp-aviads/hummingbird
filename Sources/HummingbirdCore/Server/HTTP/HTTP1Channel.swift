@@ -13,9 +13,10 @@
 //===----------------------------------------------------------------------===//
 
 import HTTPTypes
-import Logging
-import NIOCore
-import NIOHTTPTypes
+public import Logging
+public import NIOCore
+public import NIOHTTP1
+public import NIOHTTPTypes
 import NIOHTTPTypesHTTP1
 
 /// Child channel for processing HTTP1
@@ -80,7 +81,7 @@ public struct HTTP1Channel: ServerChildChannel, HTTPChannelHandler {
     ///   - channel: Child channel
     ///   - logger: Logger used during setup
     /// - Returns: Object to process input/output on child channel
-    public func setup(channel: Channel, logger: Logger) -> EventLoopFuture<Value> {
+    public func setup(channel: any Channel, logger: Logger) -> EventLoopFuture<Value> {
         channel.eventLoop.makeCompletedFuture {
             try channel.pipeline.syncOperations.configureHTTPServerPipeline(
                 withPipeliningAssistance: self.configuration.pipliningAssistance,  // HTTP is pipelined by NIOAsyncChannel

@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-import Logging
-import NIOCore
+public import Logging
+public import NIOCore
 
 /// Protocol for source of request contexts
 public protocol RequestContextSource {
@@ -28,6 +28,6 @@ public struct ApplicationRequestContextSource: RequestContextSource {
         self.logger = logger
     }
 
-    public let channel: Channel
+    public let channel: any Channel
     public let logger: Logger
 }

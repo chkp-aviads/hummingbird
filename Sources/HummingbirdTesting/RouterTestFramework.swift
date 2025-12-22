@@ -23,6 +23,7 @@ import NIOEmbedded
 import NIOHTTPTypes
 import NIOPosix
 import ServiceLifecycle
+import UnixSignals
 
 /// Test sending requests directly to router. This does not setup a live server
 struct RouterTestFramework<Responder: HTTPResponder>: ApplicationTestFramework where Responder.Context: InitializableFromSource {
@@ -48,7 +49,7 @@ struct RouterTestFramework<Responder: HTTPResponder>: ApplicationTestFramework w
     }
 
     /// Run test
-    func run<Value>(_ test: @Sendable (TestClientProtocol) async throws -> Value) async throws -> Value {
+    func run<Value>(_ test: @Sendable (Client) async throws -> Value) async throws -> Value {
         let client = Client(
             responder: self.responder,
             logger: self.logger,

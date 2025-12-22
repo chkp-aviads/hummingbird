@@ -12,9 +12,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-import Logging
-import NIOCore
-import NIOHTTPTypes
+public import Logging
+public import NIOCore
+public import NIOHTTPTypes
 
 public final class HTTPUserEventHandler: ChannelDuplexHandler, RemovableChannelHandler {
     public typealias InboundIn = HTTPRequestPart
@@ -73,7 +73,7 @@ public final class HTTPUserEventHandler: ChannelDuplexHandler, RemovableChannelH
                 self.closeAfterResponseWritten = true
                 // Schedule a timeout to close the connection after quiesceTimeout if specified
                 if let quieceTimeout {
-                    self.quiesceTimeoutTask = context.eventLoop.scheduleTask(in: quieceTimeout) {
+                    self.quiesceTimeoutTask = context.eventLoop.assumeIsolated().scheduleTask(in: quieceTimeout) {
                         self.logger.warning("Quiesce timeout reached, closing channel")
                         context.close(promise: nil)
                     }

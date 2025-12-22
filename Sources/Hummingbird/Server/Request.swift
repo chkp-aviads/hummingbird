@@ -12,12 +12,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-import HummingbirdCore
+public import HummingbirdCore
+import Logging
 
 #if canImport(FoundationEssentials)
-import FoundationEssentials
+public import FoundationEssentials
 #else
-import Foundation
+public import Foundation
 #endif
 
 extension Request {
@@ -56,7 +57,7 @@ extension Request {
             let path = context.codingPath.pathKeyValue
             let message = "Type mismatch for `\(path)` key, expected `\(type)` type."
             throw HTTPError(.badRequest, message: message)
-        } catch let error as HTTPResponseError {
+        } catch let error as any HTTPResponseError {
             context.logger.debug("Decode Error: \(error)")
             throw error
         }

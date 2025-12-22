@@ -17,6 +17,7 @@ import Atomics
 import NIOCore
 import NIOPosix
 import ServiceLifecycle
+public import Dispatch
 
 #if canImport(FoundationEssentials)
 import FoundationEssentials
@@ -38,9 +39,9 @@ final class DateCache: Service {
     }
 
     let dateContainer: ManagedAtomic<DateContainer>
-    let evenetLoop: EventLoop
+    let evenetLoop: any EventLoop
 
-    init(eventLoop: EventLoop) {
+    init(eventLoop: any EventLoop) {
         self.evenetLoop = eventLoop
         self.dateContainer = .init(.init(date: Date.now.httpHeader))
     }
@@ -64,11 +65,11 @@ public struct NIOAsyncTimerSequence: AsyncSequence {
   
   /// The iterator for a `NIOAsyncTimerSequence` instance.
   public struct Iterator: AsyncIteratorProtocol {
-    var eventLoop: EventLoop?
+    var eventLoop: (any EventLoop)?
     let interval: TimeAmount
     var last: DispatchTime?
     
-    init(interval: TimeAmount, eventLoop: EventLoop) {
+    init(interval: TimeAmount, eventLoop: any EventLoop) {
       self.eventLoop = eventLoop
       self.interval = interval
     }
@@ -105,7 +106,7 @@ public struct NIOAsyncTimerSequence: AsyncSequence {
       return currentTime
     }
     
-    private func sleep(for duration: TimeAmount, on eventLoop: EventLoop) async throws {
+      private func sleep(for duration: TimeAmount, on eventLoop: any EventLoop) async throws {
       try await withCheckedThrowingContinuation { continuation in
         let scheduled = eventLoop.scheduleTask(in: duration) {
           continuation.resume()
@@ -124,11 +125,11 @@ public struct NIOAsyncTimerSequence: AsyncSequence {
     }
   }
   
-  let eventLoop: EventLoop
+  let eventLoop: any EventLoop
   let interval: TimeAmount
   
   /// Create a `NIOAsyncTimerSequence` with a given repeating interval.
-  public init(interval: TimeAmount, eventLoop: EventLoop) {
+  public init(interval: TimeAmount, eventLoop: any EventLoop) {
     self.eventLoop = eventLoop
     self.interval = interval
   }
@@ -142,7 +143,7 @@ extension NIOAsyncTimerSequence {
   /// Create a `NIOAsyncTimerSequence` with a given repeating interval.
   public static func repeating(
     every interval: TimeAmount,
-    eventLoop: EventLoop
+    eventLoop: any EventLoop
   ) -> NIOAsyncTimerSequence {
     return NIOAsyncTimerSequence(interval: interval, eventLoop: eventLoop)
   }

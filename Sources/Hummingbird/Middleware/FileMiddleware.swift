@@ -13,15 +13,15 @@
 //===----------------------------------------------------------------------===//
 
 import HTTPTypes
-import HummingbirdCore
-import Logging
+public import HummingbirdCore
+public import Logging
 import NIOCore
-import NIOPosix
+public import NIOPosix
 
 #if canImport(FoundationEssentials)
-import FoundationEssentials
+public import FoundationEssentials
 #else
-import Foundation
+public import Foundation
 #endif
 
 /// Protocol for all the file attributes required by ``FileMiddleware``
@@ -155,7 +155,7 @@ where Provider.FileAttributes: FileMiddlewareFileAttributes {
             return try await next(request, context)
         } catch {
             // Guard that error is HTTP error notFound
-            guard let httpError = error as? HTTPResponseError, httpError.status == .notFound else {
+            guard let httpError = error as? any HTTPResponseError, httpError.status == .notFound else {
                 throw error
             }
 
