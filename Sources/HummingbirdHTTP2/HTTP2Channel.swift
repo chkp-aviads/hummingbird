@@ -104,7 +104,7 @@ public struct HTTP2Channel: ServerChildChannel {
     ///   - logger: Logger to use while processing messages
     public func handle(value: Value, logger: Logger) async {
         do {
-            if #available(iOS 17.0, *) {
+            if #available(iOS 17.0, macOS 14.0, *) {
                 try await withThrowingDiscardingTaskGroup { group in
                     for try await client in value.http2Connection.inbound {
                         group.addTask {

@@ -569,7 +569,6 @@ struct HummingbirdCoreTests {
         }
     }
 
-    #if compiler(>=6.0)
     /// Test running withInboundCloseHandler with closing input
     @Test func testWithCloseInboundHandlerWithoutClose() async throws {
         try await testServer(
@@ -687,7 +686,6 @@ struct HummingbirdCoreTests {
             try await client.close()
         }
     }
-    #endif  // compiler(>=6.0)
 }
 
 struct DelayAsyncSequence<CoreSequence: AsyncSequence>: AsyncSequence {

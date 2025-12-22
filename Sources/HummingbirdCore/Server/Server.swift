@@ -120,7 +120,7 @@ public actor Server<ChildChannel: ServerChildChannel>: Service {
 
                         let logger = self.logger
                         // We can now start to handle our work.
-                        if #available(iOS 17.0, *) {
+                        if #available(iOS 17.0, macOS 14.0, *) {
                             await withDiscardingTaskGroup { group in
                                 do {
                                     try await asyncChannel.executeThenClose { inbound in
