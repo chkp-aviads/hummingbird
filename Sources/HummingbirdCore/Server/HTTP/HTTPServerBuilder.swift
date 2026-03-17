@@ -1,16 +1,10 @@
-//===----------------------------------------------------------------------===//
 //
 // This source file is part of the Hummingbird server framework project
-//
-// Copyright (c) 2023 the Hummingbird authors
-// Licensed under Apache License v2.0
+// Copyright (c) the Hummingbird authors
 //
 // See LICENSE.txt for license information
-// See hummingbird/CONTRIBUTORS.txt for the list of Hummingbird authors
-//
 // SPDX-License-Identifier: Apache-2.0
 //
-//===----------------------------------------------------------------------===//
 
 public import Logging
 public import NIOCore
@@ -38,6 +32,7 @@ public struct HTTPServerBuilder: Sendable {
     ///   - responder: HTTP responder
     ///   - onServerRunning: Closure to run once server is up and running
     /// - Returns: Server Service
+    @available(macOS 14, iOS 17, tvOS 17, *)
     public func buildServer(
         configuration: ServerConfiguration,
         eventLoopGroup: any EventLoopGroup,

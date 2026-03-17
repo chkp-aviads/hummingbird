@@ -1,20 +1,15 @@
-//===----------------------------------------------------------------------===//
 //
 // This source file is part of the Hummingbird server framework project
-//
-// Copyright (c) 2021-2024 the Hummingbird authors
-// Licensed under Apache License v2.0
+// Copyright (c) the Hummingbird authors
 //
 // See LICENSE.txt for license information
-// See hummingbird/CONTRIBUTORS.txt for the list of Hummingbird authors
-//
 // SPDX-License-Identifier: Apache-2.0
 //
-//===----------------------------------------------------------------------===//
 
 public import Foundation
 
 /// The wrapper struct for decoding URL encoded form data to Codable classes
+@available(macOS 14, iOS 17, tvOS 17, *)
 public struct URLEncodedFormDecoder: Sendable {
     /// The strategy to use for decoding `Date` values.
     public enum DateDecodingStrategy: Sendable {
@@ -81,6 +76,7 @@ public struct URLEncodedFormDecoder: Sendable {
     }
 }
 
+@available(macOS 14, iOS 17, tvOS 17, *)
 private class _URLEncodedFormDecoder: Decoder {
     // MARK: Properties
 
@@ -427,6 +423,7 @@ private class _URLEncodedFormDecoder: Decoder {
     }
 }
 
+@available(macOS 14, iOS 17, tvOS 17, *)
 extension _URLEncodedFormDecoder: SingleValueDecodingContainer {
     func decodeNil() -> Bool {
         (try? self.unboxNil(self.storage.topContainer)) ?? false
@@ -493,6 +490,7 @@ extension _URLEncodedFormDecoder: SingleValueDecodingContainer {
     }
 }
 
+@available(macOS 14, iOS 17, tvOS 17, *)
 extension _URLEncodedFormDecoder {
     func unboxNil(_ node: URLEncodedFormNode) throws -> Bool {
         switch node {
@@ -692,6 +690,7 @@ extension _URLEncodedFormDecoder {
     }
 }
 
+@available(macOS 14, iOS 17, tvOS 17, *)
 private struct URLEncodedFormDecodingStorage {
     /// the container stack
     private var containers: [URLEncodedFormNode] = []

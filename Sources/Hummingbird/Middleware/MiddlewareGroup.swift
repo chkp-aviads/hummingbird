@@ -1,16 +1,10 @@
-//===----------------------------------------------------------------------===//
 //
 // This source file is part of the Hummingbird server framework project
-//
-// Copyright (c) 2021-2023 the Hummingbird authors
-// Licensed under Apache License v2.0
+// Copyright (c) the Hummingbird authors
 //
 // See LICENSE.txt for license information
-// See hummingbird/CONTRIBUTORS.txt for the list of Hummingbird authors
-//
 // SPDX-License-Identifier: Apache-2.0
 //
-//===----------------------------------------------------------------------===//
 
 /// Type-erased middleware wrapper for iOS 15 compatibility
 public struct AnyMiddleware<Input, Output, Context>: Sendable {
@@ -26,6 +20,7 @@ public struct AnyMiddleware<Input, Output, Context>: Sendable {
 }
 
 /// Group of middleware that can be used to create a responder chain. Each middleware calls the next one
+@available(macOS 14, iOS 17, tvOS 17, *)
 public final class MiddlewareGroup<Context> {
     var middlewares: [AnyMiddleware<Request, Response, Context>]
 

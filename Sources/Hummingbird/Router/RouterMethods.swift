@@ -1,16 +1,10 @@
-//===----------------------------------------------------------------------===//
 //
 // This source file is part of the Hummingbird server framework project
-//
-// Copyright (c) 2021-2023 the Hummingbird authors
-// Licensed under Apache License v2.0
+// Copyright (c) the Hummingbird authors
 //
 // See LICENSE.txt for license information
-// See hummingbird/CONTRIBUTORS.txt for the list of Hummingbird authors
-//
 // SPDX-License-Identifier: Apache-2.0
 //
-//===----------------------------------------------------------------------===//
 
 public import HTTPTypes
 public import HummingbirdCore
@@ -40,6 +34,7 @@ public protocol RouterMethods<Context>: _HB_SendableMetatype {
     func add(middleware: any MiddlewareProtocol<Request, Response, Context>) -> Self
 }
 
+@available(macOS 14, iOS 17, tvOS 17, *)
 extension RouterMethods {
     /// Add path for async closure
     @discardableResult public func on(

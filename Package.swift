@@ -17,7 +17,7 @@ let swiftSettings: [SwiftSetting] = [
 
 let package = Package(
     name: "hummingbird",
-    platforms: [.macOS(.v13), .iOS(.v15), .macCatalyst(.v15), .tvOS(.v15)],
+    platforms: [.macOS(.v13), .iOS(.v15), .macCatalyst(.v15), .tvOS(.v15), .visionOS(.v1)],
     products: [
         .library(name: "Hummingbird", targets: ["Hummingbird"]),
         .library(name: "HummingbirdCore", targets: ["HummingbirdCore"]),
@@ -35,19 +35,18 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-async-algorithms.git", from: "1.0.2"),
         .package(url: "https://github.com/apple/swift-atomics.git", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.0"),
-        .package(url: "https://github.com/apple/swift-log.git", from: "1.4.0"),
+        .package(url: "https://github.com/apple/swift-configuration.git", from: "1.0.2", traits: []),
+        .package(url: "https://github.com/apple/swift-distributed-tracing.git", from: "1.3.0"),
         .package(url: "https://github.com/apple/swift-http-types.git", from: "1.0.0"),
+        .package(url: "https://github.com/apple/swift-log.git", from: "1.4.0"),
         .package(url: "https://github.com/apple/swift-metrics.git", from: "2.5.0"),
-        .package(url: "https://github.com/apple/swift-distributed-tracing.git", from: "1.1.0"),
-        .package(url: "https://github.com/chkp-aviads/swift-nio.git", from: "2.92.2"),
-        .package(url: "https://github.com/chkp-aviads/swift-nio-extras.git", from: "1.31.4"),
-        .package(url: "https://github.com/chkp-aviads/swift-nio-http2.git", from: "1.39.1"),
-        .package(url: "https://github.com/chkp-aviads/swift-nio-ssl.git", from: "2.36.1"),
-        .package(url: "https://github.com/chkp-aviads/swift-nio-transport-services.git", from: "1.26.1"),
+        .package(url: "https://github.com/chkp-aviads/swift-nio.git", from: "2.96.1"),
+        .package(url: "https://github.com/chkp-aviads/swift-nio-extras.git", from: "1.33.1"),
+        .package(url: "https://github.com/chkp-aviads/swift-nio-http2.git", from: "1.40.2"),
+        .package(url: "https://github.com/chkp-aviads/swift-nio-ssl.git", from: "2.36.4"),
+        .package(url: "https://github.com/chkp-aviads/swift-nio-transport-services.git", from: "1.26.3"),
         .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "2.0.0"),
-        .package(url: "https://github.com/chkp-aviads/async-http-client.git", from: "1.32.2"),
-        .package(url: "https://github.com/apple/swift-configuration.git", from: "1.0.0"),
-        .package(url: "https://github.com/apple/swift-service-context.git", from: "1.1.0")
+        .package(url: "https://github.com/chkp-aviads/async-http-client.git", from: "1.33.5"),
     ],
     targets: [
         .target(
@@ -64,7 +63,6 @@ let package = Package(
                 .product(name: "Tracing", package: "swift-distributed-tracing"),
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOPosix", package: "swift-nio"),
-                .product(name: "ServiceContextModule", package: "swift-service-context"),
             ],
             swiftSettings: swiftSettings
         ),
@@ -187,3 +185,24 @@ let package = Package(
         ),
     ]
 )
+
+if Context.environment["ENABLE_HB_BENCHMARKS"] != nil {
+    package.dependencies.append(
+        .package(url: "https://github.com/ordo-one/package-benchmark", from: "1.0.0")
+    )
+    package.targets.append(
+        .executableTarget(
+            name: "HummingbirdBenchmarks",
+            dependencies: [
+                "Hummingbird",
+                "HummingbirdRouter",
+                .product(name: "Benchmark", package: "package-benchmark"),
+            ],
+            path: "Benchmarks/HummingbirdBenchmarks",
+            swiftSettings: swiftSettings,
+            plugins: [
+                .plugin(name: "BenchmarkPlugin", package: "package-benchmark")
+            ]
+        )
+    )
+}

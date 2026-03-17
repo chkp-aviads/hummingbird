@@ -1,16 +1,10 @@
-//===----------------------------------------------------------------------===//
 //
 // This source file is part of the Hummingbird server framework project
-//
-// Copyright (c) 2023 the Hummingbird authors
-// Licensed under Apache License v2.0
+// Copyright (c) the Hummingbird authors
 //
 // See LICENSE.txt for license information
-// See hummingbird/CONTRIBUTORS.txt for the list of Hummingbird authors
-//
 // SPDX-License-Identifier: Apache-2.0
 //
-//===----------------------------------------------------------------------===//
 
 public import Logging
 public import NIOCore
@@ -24,6 +18,7 @@ import NIOTransportServices
 #endif
 
 /// HTTP server class
+@available(macOS 14, iOS 17, tvOS 17, *)
 public actor Server<ChildChannel: ServerChildChannel>: Service {
     public typealias AsyncChildChannel = ChildChannel.Value
     public typealias AsyncServerChannel = NIOAsyncChannel<AsyncChildChannel, Never>
@@ -96,6 +91,7 @@ public actor Server<ChildChannel: ServerChildChannel>: Service {
         self.name = configuration.serverName ?? "?"
     }
 
+    @available(macOS 14, iOS 17, tvOS 17, *)
     public func run() async throws {
         switch self.state {
         case .initial(let childChannelSetup, let configuration, let onServerRunning):
@@ -387,6 +383,7 @@ extension NIOTSListenerBootstrap: ServerBootstrapProtocol {
 }
 #endif
 
+@available(macOS 14, iOS 17, tvOS 17, *)
 extension Server: CustomStringConvertible {
     public nonisolated var description: String {
         "Hummingbird"

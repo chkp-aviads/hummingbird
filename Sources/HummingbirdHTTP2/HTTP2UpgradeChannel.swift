@@ -1,16 +1,10 @@
-//===----------------------------------------------------------------------===//
 //
 // This source file is part of the Hummingbird server framework project
-//
-// Copyright (c) 2023-2024 the Hummingbird authors
-// Licensed under Apache License v2.0
+// Copyright (c) the Hummingbird authors
 //
 // See LICENSE.txt for license information
-// See hummingbird/CONTRIBUTORS.txt for the list of Hummingbird authors
-//
 // SPDX-License-Identifier: Apache-2.0
 //
-//===----------------------------------------------------------------------===//
 
 import HTTPTypes
 import HummingbirdCore
@@ -23,6 +17,7 @@ import NIOSSL
 import NIOTLS
 
 /// Child channel for processing HTTP1 with the option of upgrading to HTTP2 via ALPN
+@available(macOS 14, iOS 17, tvOS 17, *)
 public struct HTTP2UpgradeChannel: HTTPChannelHandler {
     public typealias Configuration = HTTP2ChannelConfiguration
     typealias HTTP1Connection = HTTP1Channel.Value

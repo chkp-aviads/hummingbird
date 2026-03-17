@@ -1,16 +1,10 @@
-//===----------------------------------------------------------------------===//
 //
 // This source file is part of the Hummingbird server framework project
-//
-// Copyright (c) 2021-2021 the Hummingbird authors
-// Licensed under Apache License v2.0
+// Copyright (c) the Hummingbird authors
 //
 // See LICENSE.txt for license information
-// See hummingbird/CONTRIBUTORS.txt for the list of Hummingbird authors
-//
 // SPDX-License-Identifier: Apache-2.0
 //
-//===----------------------------------------------------------------------===//
 
 public import HTTPTypes
 public import NIOCore
@@ -24,6 +18,7 @@ public import NIOSSL
 ///
 /// This HTTP client is used for internal testing of Hummingbird and is also
 /// the client used by `.live` testing framework.
+@available(macOS 14, iOS 17, tvOS 17, *)
 public struct TestClient: Sendable {
     public let channelPromise: EventLoopPromise<any Channel>
     let eventLoopGroup: any EventLoopGroup
