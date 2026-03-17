@@ -9,7 +9,6 @@
 public import Foundation
 
 /// The wrapper struct for encoding Codable classes to URL encoded form data
-@available(macOS 14, iOS 17, tvOS 17, *)
 public struct URLEncodedFormEncoder: Sendable {
     /// The strategy to use for encoding `Date` values.
     public enum DateEncodingStrategy: Sendable {
@@ -81,7 +80,6 @@ public struct URLEncodedFormEncoder: Sendable {
 }
 
 /// Internal QueryEncoder class. Does all the heavy lifting
-@available(macOS 14, iOS 17, tvOS 17, *)
 private class _URLEncodedFormEncoder: Encoder {
     var codingPath: [any CodingKey]
 
@@ -275,7 +273,6 @@ private class _URLEncodedFormEncoder: Encoder {
     }
 }
 
-@available(macOS 14, iOS 17, tvOS 17, *)
 extension _URLEncodedFormEncoder: SingleValueEncodingContainer {
     func encodeResult(_ value: URLEncodedFormNode) {
         self.storage.push(container: value)
@@ -313,7 +310,6 @@ extension _URLEncodedFormEncoder: SingleValueEncodingContainer {
     }
 }
 
-@available(macOS 14, iOS 17, tvOS 17, *)
 extension _URLEncodedFormEncoder {
     func box(_ date: Date) throws -> URLEncodedFormNode {
         switch self.options.dateEncodingStrategy {
@@ -359,7 +355,6 @@ extension _URLEncodedFormEncoder {
 }
 
 /// storage for Query Encoder. Stores a stack of QueryEncoder containers, plus leaf objects
-@available(macOS 14, iOS 17, tvOS 17, *)
 private struct URLEncodedFormEncoderStorage {
     /// the container stack
     private var containers: [URLEncodedFormNode] = []

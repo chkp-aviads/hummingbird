@@ -26,7 +26,6 @@ struct AnyHTTPResponder<Context>: Sendable {
 }
 
 /// Stores endpoint responders for each HTTP method
-@available(macOS 14, iOS 17, tvOS 17, *)
 @usableFromInline
 struct EndpointResponders<Context>: Sendable {
     init(path: RouterPath) {

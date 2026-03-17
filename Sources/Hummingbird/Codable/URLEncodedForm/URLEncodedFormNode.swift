@@ -71,7 +71,6 @@ extension URLEncodedFormError {
     }
 }
 /// Internal representation of URL encoded form data used by both encode and decode
-@available(macOS 14, iOS 17, tvOS 17, *)
 enum URLEncodedFormNode: CustomStringConvertible, Equatable {
     /// holds a value
     case leaf(NodeValue?)
@@ -101,7 +100,7 @@ enum URLEncodedFormNode: CustomStringConvertible, Equatable {
             if let equals = element.firstIndex(of: "=") {
                 let before = element[..<equals].removingURLPercentEncoding()
                 let afterEquals = element.index(after: equals)
-                let after = element[afterEquals...].replacing("+", with: " ")
+                let after = element[afterEquals...].replacingOccurrences(of: "+", with: " ")
                 guard let key = before else { throw URLEncodedFormError(code: .failedToPercentDecode, value: element[..<equals]) }
 
                 guard let keys = KeyParser.parse(key) else { throw URLEncodedFormError(code: .corruptKeyValue, value: key) }

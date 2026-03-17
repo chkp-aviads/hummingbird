@@ -16,7 +16,6 @@ import ServiceLifecycle
 /// TestApplication used to wrap Application being tested.
 ///
 /// This is needed to override the `onServerRunning` function
-@available(macOS 14, iOS 17, tvOS 17, *)
 internal struct TestApplication<BaseApp: ApplicationProtocol>: ApplicationProtocol, Service {
     typealias Responder = BaseApp.Responder
 

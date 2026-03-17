@@ -9,7 +9,6 @@
 import NIOCore
 import NIOHTTP2
 
-@available(macOS 14, iOS 17, tvOS 17, *)
 extension HTTP2ServerConnectionManager {
     struct StateMachine: ~Copyable {
         var state: State
@@ -197,7 +196,6 @@ extension HTTP2ServerConnectionManager {
     }
 }
 
-@available(macOS 14, iOS 17, tvOS 17, *)
 extension HTTP2ServerConnectionManager.StateMachine {
     enum State: ~Copyable {
         struct ActiveState {
@@ -234,7 +232,6 @@ extension HTTP2ServerConnectionManager.StateMachine {
     }
 }
 
-@available(macOS 14, iOS 17, tvOS 17, *)
 extension HTTP2ServerConnectionManager.StateMachine {
     struct Keepalive {
         /// Allow the client to send keep alive pings when there are no active calls.
@@ -306,7 +303,6 @@ extension HTTP2ServerConnectionManager.StateMachine {
     }
 }
 
-@available(macOS 14, iOS 17, tvOS 17, *)
 extension HTTP2ServerConnectionManager.StateMachine {
     //     case active(ActiveState)
     //     case closing(ClosingState)
