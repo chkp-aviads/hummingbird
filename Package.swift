@@ -47,6 +47,7 @@ let package = Package(
         .package(url: "https://github.com/chkp-aviads/swift-nio-transport-services.git", from: "1.26.3"),
         .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "2.0.0"),
         .package(url: "https://github.com/chkp-aviads/async-http-client.git", from: "1.33.5"),
+        .package(url: "https://github.com/apple/swift-service-context.git", from: "1.2.1")
     ],
     targets: [
         .target(
@@ -63,6 +64,7 @@ let package = Package(
                 .product(name: "Tracing", package: "swift-distributed-tracing"),
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOPosix", package: "swift-nio"),
+                .product(name: "ServiceContextModule", package: "swift-service-context"),
             ],
             swiftSettings: swiftSettings
         ),
