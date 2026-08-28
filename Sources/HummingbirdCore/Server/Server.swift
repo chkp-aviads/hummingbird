@@ -267,7 +267,7 @@ public actor Server<ChildChannel: ServerChildChannel>: Service {
             case .unixDomainSocket(let path):
                 let asyncChannel = try await bootstrap.bind(
                     unixDomainSocketPath: path,
-                    cleanupExistingSocketFile: false,
+                    cleanupExistingSocketFile: true,
                     serverBackPressureStrategy: nil
                 ) { channel in
                     childChannelSetup.setup(
@@ -310,7 +310,6 @@ public actor Server<ChildChannel: ServerChildChannel>: Service {
             // Specify backlog and enable SO_REUSEADDR for the server itself
             .serverChannelOption(ChannelOptions.backlog, value: numericCast(configuration.backlog))
             .serverChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: configuration.reuseAddress ? 1 : 0)
-            .childChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: configuration.reuseAddress ? 1 : 0)
             .childChannelOption(ChannelOptions.allowRemoteHalfClosure, value: true)
     }
 
@@ -323,7 +322,6 @@ public actor Server<ChildChannel: ServerChildChannel>: Service {
             let bootstrap = NIOTSListenerBootstrap(validatingGroup: self.eventLoopGroup)?
                 .serverChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: configuration.reuseAddress ? 1 : 0)
                 // Set the handlers that are applied to the accepted Channels
-                .childChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: configuration.reuseAddress ? 1 : 0)
                 .childChannelOption(ChannelOptions.allowRemoteHalfClosure, value: true)
         else {
             return nil

@@ -6,7 +6,7 @@
 </p>  
 <p align="center">
 <a href="https://swift.org">
-  <img src="https://img.shields.io/badge/swift-5.10+-f05138.svg"/>
+  <img src="https://img.shields.io/badge/swift-6.1+-f05138.svg"/>
 </a>
 <a href="https://github.com/hummingbird-project/hummingbird/actions?query=workflow%3ACI">
   <img src="https://github.com/hummingbird-project/hummingbird/actions/workflows/ci.yml/badge.svg?branch=main"/>
@@ -112,4 +112,4 @@ Support development of Hummingbird by becoming a [sponsor](https://github.com/sp
 
 Support development of Hummingbird by becoming a [backer](https://github.com/sponsors/hummingbird-project).
 
-<!-- backers --><a href="https://github.com/thoven87"><img src="https:&#x2F;&#x2F;github.com&#x2F;thoven87.png" width="60px" alt="User avatar: Stevenson Michel" /></a><a href="https://github.com/mattmassicotte"><img src="https:&#x2F;&#x2F;github.com&#x2F;mattmassicotte.png" width="60px" alt="User avatar: Matt Massicotte" /></a><a href="https://github.com/slashmo"><img src="https:&#x2F;&#x2F;github.com&#x2F;slashmo.png" width="60px" alt="User avatar: Moritz Lang" /></a><a href="https://github.com/the-braveknight"><img src="https:&#x2F;&#x2F;github.com&#x2F;the-braveknight.png" width="60px" alt="User avatar: Zaid Rahhawi" /></a><!-- backers -->
+<!-- backers --><a href="https://github.com/thoven87"><img src="https:&#x2F;&#x2F;github.com&#x2F;thoven87.png" width="60px" alt="User avatar: Stevenson Michel" /></a><a href="https://github.com/mattmassicotte"><img src="https:&#x2F;&#x2F;github.com&#x2F;mattmassicotte.png" width="60px" alt="User avatar: Matt Massicotte" /></a><a href="https://github.com/slashmo"><img src="https:&#x2F;&#x2F;github.com&#x2F;slashmo.png" width="60px" alt="User avatar: Moritz Lang" /></a><a href="https://github.com/the-braveknight"><img src="https:&#x2F;&#x2F;github.com&#x2F;the-braveknight.png" width="60px" alt="User avatar: Zaid Rahhawi" /></a><a href="https://github.com/zaneenders"><img src="https:&#x2F;&#x2F;github.com&#x2F;zaneenders.png" width="60px" alt="User avatar: Zane Enders" /></a><!-- backers -->
