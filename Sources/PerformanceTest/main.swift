@@ -11,7 +11,7 @@ import Logging
 import NIOCore
 import NIOPosix
 
-if #available(macOS 14, iOS 17, tvOS 17, *) {
+if #available(hummingbird 2.0, *) {
     // get environment
     let env = Environment()
     let hostname = env.get("SERVER_HOSTNAME") ?? "127.0.0.1"
@@ -20,9 +20,6 @@ if #available(macOS 14, iOS 17, tvOS 17, *) {
     // create app
     let elg = MultiThreadedEventLoopGroup(numberOfThreads: 4)
     let router = Router()
-    router.addMiddleware {
-        FileMiddleware()
-    }
 
     // number of raw requests
     // ./wrk -c 128 -d 15s -t 8 http://localhost:8080

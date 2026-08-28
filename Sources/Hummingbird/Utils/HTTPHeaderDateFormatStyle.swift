@@ -18,6 +18,7 @@ import FoundationEssentials
 import Foundation
 #endif
 
+@available(hummingbird 2.0, *)
 extension Date {
     init?(httpHeader: String) {
         try? self.init(httpHeader, strategy: .rfc9110)
@@ -30,6 +31,7 @@ extension Date {
 
 struct HTTPHeaderDateParsingError: Error {}
 
+@available(hummingbird 2.0, *)
 struct HTTPHeaderDateFormatStyle {
     let calendar: Calendar
 
@@ -40,6 +42,7 @@ struct HTTPHeaderDateFormatStyle {
     }
 }
 
+@available(hummingbird 2.0, *)
 extension HTTPHeaderDateFormatStyle: ParseStrategy {
     func parse(_ input: String) throws -> Date {
         guard let components = self.components(from: input) else {
@@ -275,6 +278,7 @@ let timezoneOffsetMap: [[UInt8]: Int] = [
     Array("PDT".utf8): -7 * 60,
 ]
 
+@available(hummingbird 2.0, *)
 extension HTTPHeaderDateFormatStyle: FormatStyle {
     //let calendar: Calendar
 
@@ -319,10 +323,12 @@ extension HTTPHeaderDateFormatStyle: FormatStyle {
     ]
 }
 
+@available(hummingbird 2.0, *)
 extension FormatStyle where Self == HTTPHeaderDateFormatStyle {
     static var rfc9110: Self { .init() }
 }
 
+@available(hummingbird 2.0, *)
 extension ParseStrategy where Self == HTTPHeaderDateFormatStyle {
     static var rfc9110: Self { .init() }
 }

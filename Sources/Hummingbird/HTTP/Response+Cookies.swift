@@ -8,6 +8,7 @@
 
 public import HummingbirdCore
 
+@available(hummingbird 2.0, *)
 extension Response {
     /// Set cookie on response
     public mutating func setCookie(_ cookie: Cookie) {
@@ -15,6 +16,7 @@ extension Response {
     }
 }
 
+@available(hummingbird 2.0, *)
 extension EditedResponse {
     /// Set cookie on reponse patch
     ///

@@ -34,6 +34,7 @@ public protocol ServerChildChannel: Sendable {
     func handle(value: Value, logger: Logger) async
 }
 
+@available(hummingbird 2.0, *)
 extension ServerChildChannel {
     /// Build existential ``Server`` from existential `ServerChildChannel`
     ///

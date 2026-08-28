@@ -10,6 +10,7 @@ public import HTTPTypes
 public import NIOCore
 
 /// HTTP client types
+@available(hummingbird 2.0, *)
 extension TestClient {
     public enum Error: Swift.Error {
         case invalidURL

@@ -13,6 +13,7 @@ public import Foundation
 #endif
 
 /// Structure holding a single cookie
+@available(hummingbird 2.0, *)
 public struct Cookie: Sendable, CustomStringConvertible {
     public struct ValidationError: Error {
         enum Reason {

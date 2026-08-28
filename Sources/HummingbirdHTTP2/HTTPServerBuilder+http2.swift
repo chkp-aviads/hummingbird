@@ -6,10 +6,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-import HummingbirdCore
-import NIOCore
-import NIOSSL
+public import HummingbirdCore
+public import NIOCore
+public import NIOSSL
 
+@available(hummingbird 2.0, *)
 extension HTTPServerBuilder {
     /// Build HTTP channel with HTTP2 upgrade
     ///

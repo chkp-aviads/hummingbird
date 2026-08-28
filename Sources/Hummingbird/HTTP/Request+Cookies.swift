@@ -8,6 +8,7 @@
 
 public import HummingbirdCore
 
+@available(hummingbird 2.0, *)
 extension Request {
     /// access cookies from request. When accessing this for the first time the Cookies struct will be created
     public var cookies: Cookies {

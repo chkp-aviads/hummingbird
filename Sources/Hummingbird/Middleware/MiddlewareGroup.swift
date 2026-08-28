@@ -7,6 +7,7 @@
 //
 
 /// Type-erased middleware wrapper for iOS 15 compatibility
+@available(hummingbird 2.0, *)
 public struct AnyMiddleware<Input, Output, Context>: Sendable {
     private let _handle: @Sendable (Input, Context, @escaping @Sendable (Input, Context) async throws -> Output) async throws -> Output
     
@@ -20,6 +21,7 @@ public struct AnyMiddleware<Input, Output, Context>: Sendable {
 }
 
 /// Group of middleware that can be used to create a responder chain. Each middleware calls the next one
+@available(hummingbird 2.0, *)
 public final class MiddlewareGroup<Context> {
     var middlewares: [AnyMiddleware<Request, Response, Context>]
 

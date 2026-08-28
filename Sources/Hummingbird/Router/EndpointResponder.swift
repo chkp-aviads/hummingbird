@@ -9,6 +9,7 @@
 public import HTTPTypes
 
 /// Type-erased wrapper for HTTPResponder to support iOS 15
+@available(hummingbird 2.0, *)
 @usableFromInline
 struct AnyHTTPResponder<Context>: Sendable {
     @usableFromInline
@@ -26,6 +27,7 @@ struct AnyHTTPResponder<Context>: Sendable {
 }
 
 /// Stores endpoint responders for each HTTP method
+@available(hummingbird 2.0, *)
 @usableFromInline
 struct EndpointResponders<Context>: Sendable {
     init(path: RouterPath) {

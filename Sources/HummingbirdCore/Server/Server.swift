@@ -18,6 +18,7 @@ import NIOTransportServices
 #endif
 
 /// HTTP server class
+@available(hummingbird 2.0, *)
 public actor Server<ChildChannel: ServerChildChannel>: Service {
     public typealias AsyncChildChannel = ChildChannel.Value
     public typealias AsyncServerChannel = NIOAsyncChannel<AsyncChildChannel, Never>
@@ -90,6 +91,7 @@ public actor Server<ChildChannel: ServerChildChannel>: Service {
         self.name = configuration.serverName ?? "?"
     }
 
+    @available(hummingbird 2.0, *)
     public func run() async throws {
         switch self.state {
         case .initial(let childChannelSetup, let configuration, let onServerRunning):
@@ -381,6 +383,7 @@ extension NIOTSListenerBootstrap: ServerBootstrapProtocol {
 }
 #endif
 
+@available(hummingbird 2.0, *)
 extension Server: CustomStringConvertible {
     public nonisolated var description: String {
         "Hummingbird"
