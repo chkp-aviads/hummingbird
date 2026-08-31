@@ -20,8 +20,8 @@ import NIOEmbedded
 import NIOHTTPTypes
 import Testing
 
-@Suite("HTTPUserEventHandlerTests")
-struct HTTPUserEventHandlerTests {
+@Suite("HTTPConnectionStateHandlerTests")
+struct HTTPConnectionStateHandlerTests {
     private final class DiscardInboundHandler: ChannelInboundHandler {
         typealias InboundIn = HTTPRequestPart
 
@@ -38,9 +38,9 @@ struct HTTPUserEventHandlerTests {
         let address = try SocketAddress(ipAddress: "127.0.0.1", port: 12345)
         try channel.connect(to: address).wait()
 
-        let handler = HTTPUserEventHandler(
-            logger: Logger(label: #function),
-            quiesceTimeout: .milliseconds(10)
+        let handler = HTTPConnectionStateHandler(
+            quiesceTimeout: .milliseconds(10),
+            logger: Logger(label: #function)
         )
 
         try channel.pipeline.syncOperations.addHandler(handler)
@@ -78,9 +78,9 @@ struct HTTPUserEventHandlerTests {
         let address = try SocketAddress(ipAddress: "127.0.0.1", port: 12346)
         try channel.connect(to: address).wait()
 
-        let handler = HTTPUserEventHandler(
-            logger: Logger(label: #function),
-            quiesceTimeout: .milliseconds(50)
+        let handler = HTTPConnectionStateHandler(
+            quiesceTimeout: .milliseconds(50),
+            logger: Logger(label: #function)
         )
 
         try channel.pipeline.syncOperations.addHandler(handler)

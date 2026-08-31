@@ -14,6 +14,7 @@ import NIOHTTPTypes
 import NIOHTTPTypesHTTP2
 
 /// HTTP2 Child channel for processing an HTTP2 stream
+@available(hummingbird 2.0, *)
 struct HTTP2StreamChannel: ServerChildChannel {
     typealias Value = NIOAsyncChannel<HTTPRequestPart, HTTPResponsePart>
     typealias Configuration = HTTP1Channel.Configuration
@@ -39,10 +40,13 @@ struct HTTP2StreamChannel: ServerChildChannel {
         channel.eventLoop.makeCompletedFuture {
             try channel.pipeline.syncOperations.addHandler(HTTP2FramePayloadToHTTPServerCodec())
             try channel.pipeline.syncOperations.addHandlers(self.configuration.additionalChannelHandlers())
-            if let idleTimeout = self.configuration.idleTimeout {
-                try channel.pipeline.syncOperations.addHandler(IdleStateHandler(readTimeout: idleTimeout))
-            }
-            try channel.pipeline.syncOperations.addHandler(HTTPUserEventHandler(logger: logger, quiesceTimeout: self.configuration.quiesceTimeout))
+            try channel.pipeline.syncOperations.addHandler(
+                HTTPConnectionStateHandler(
+                    idleTimeout: self.configuration.idleTimeout,
+                    quiesceTimeout: self.configuration.quiesceTimeout,
+                    logger: logger
+                )
+            )
             return try HTTP1Channel.Value(wrappingChannelSynchronously: channel)
         }
     }

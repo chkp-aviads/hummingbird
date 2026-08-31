@@ -9,11 +9,12 @@
 import HTTPTypes
 public import Logging
 public import NIOCore
-public import NIOHTTP1
+import NIOHTTP1
 public import NIOHTTPTypes
 import NIOHTTPTypesHTTP1
 
 /// Child channel for processing HTTP1
+@available(hummingbird 2.0, *)
 public struct HTTP1Channel: ServerChildChannel, HTTPChannelHandler {
     public typealias Value = NIOAsyncChannel<HTTPRequestPart, HTTPResponsePart>
 
@@ -84,10 +85,13 @@ public struct HTTP1Channel: ServerChildChannel, HTTPChannelHandler {
             )
             try channel.pipeline.syncOperations.addHandler(HTTP1ToHTTPServerCodec(secure: false))
             try channel.pipeline.syncOperations.addHandlers(self.configuration.additionalChannelHandlers())
-            if let idleTimeout = self.configuration.idleTimeout {
-                try channel.pipeline.syncOperations.addHandler(IdleStateHandler(readTimeout: idleTimeout))
-            }
-            try channel.pipeline.syncOperations.addHandler(HTTPUserEventHandler(logger: logger, quiesceTimeout: self.configuration.quiesceTimeout))
+            try channel.pipeline.syncOperations.addHandler(
+                HTTPConnectionStateHandler(
+                    idleTimeout: self.configuration.idleTimeout,
+                    quiesceTimeout: self.configuration.quiesceTimeout,
+                    logger: logger
+                )
+            )
             return try NIOAsyncChannel(
                 wrappingChannelSynchronously: channel,
                 configuration: .init(isOutboundHalfClosureEnabled: true)
