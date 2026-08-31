@@ -19,11 +19,6 @@ public final class HTTPConnectionStateHandler: ChannelDuplexHandler, RemovableCh
     public typealias OutboundIn = HTTPResponsePart
     public typealias OutboundOut = HTTPResponsePart
 
-    /// An idle-state event retained for compatibility with `HTTPUserEventHandler`.
-    public enum IdleStateEvent: Sendable {
-        case read
-    }
-
     let logger: Logger
     var state: StateMachine
     private var scheduledIdleTask: Scheduled<Void>?
