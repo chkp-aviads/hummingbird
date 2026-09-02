@@ -17,7 +17,9 @@ import NIOHTTPTypes
 import NIOPosix
 import ServiceLifecycle
 import Testing
+#if canImport(Network)
 import NIOTransportServices
+#endif
 import UnixSignals
 
 #if canImport(Network)

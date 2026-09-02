@@ -13,6 +13,9 @@ public import Tracing
 
 #if canImport(FoundationEssentials)
 import FoundationEssentials
+// replacingOccurrences(of:with:) is in full Foundation, not FoundationEssentials.
+// On Android canImport(FoundationEssentials) is true, so this file needs both.
+import Foundation
 #else
 import Foundation
 #endif

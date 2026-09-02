@@ -337,7 +337,8 @@ extension URLEncodedFormTests {
             }
         }
 
-        #if compiler(>=6.2)
+        // swift-testing exit tests are not implemented on Android.
+        #if compiler(>=6.2) && !os(Android)
         @Test func testOverflow() async throws {
             await #expect(processExitsWith: .success) {
                 struct Input1: Decodable {}
